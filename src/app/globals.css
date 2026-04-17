@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  /* PlayStation Theme Variables */
+  --ps-blue: #0070cc;
+  --ps-cyan: #1eaedb;
+  --console-black: #000000;
+  --shadow-black: #121314;
+  --paper-white: #ffffff;
+  --ice-mist: #f5f7fa;
+  --divider-tint: #e8e8e8;
+  --display-ink: #000000;
+  --deep-charcoal: #1f1f1f;
+  --body-gray: #4a4a4a;
+  --mute-gray: #999999;
+  --inverse-white: #ffffff;
+  --commerce-orange: #d53b00;
+  --warning-red: #c81b3a;
+}
+
+@theme inline {
+  --color-ps-blue: var(--ps-blue);
+  --color-ps-cyan: var(--ps-cyan);
+  --color-console-black: var(--console-black);
+  --color-shadow-black: var(--shadow-black);
+  --color-paper-white: var(--paper-white);
+  --color-ice-mist: var(--ice-mist);
+  --color-divider-tint: var(--divider-tint);
+  --color-display-ink: var(--display-ink);
+  --color-deep-charcoal: var(--deep-charcoal);
+  --color-body-gray: var(--body-gray);
+  --color-mute-gray: var(--mute-gray);
+  --color-inverse-white: var(--inverse-white);
+  --color-commerce-orange: var(--commerce-orange);
+  --color-warning-red: var(--warning-red);
+  
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background-color: var(--console-black);
+  color: var(--inverse-white);
+}
+
+/* Force all form elements to use dark text on light backgrounds */
+input, select, textarea {
+  color: var(--deep-charcoal);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--mute-gray);
+}
+
+/* Base PlayStation signature button styling */
+.btn-playstation {
+  background-color: var(--ps-blue);
+  color: var(--inverse-white);
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  transition: all 180ms ease;
+  outline: none;
+  border: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+}
+
+.btn-playstation:hover, .btn-playstation:focus {
+  background-color: var(--ps-cyan);
+  color: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px var(--ps-blue);
+  transform: scale(1.03);
+}
+
+.btn-playstation:active {
+  opacity: 0.6;
+}
