@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -21,9 +21,9 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { UserPlus, X, Loader2, AlertTriangle } from "lucide-react";
+import { UserPlus, X, Loader2, AlertTriangle, Trash2, Search, Calendar, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { moveTaskStatus, getLoaders, assignLoaderToTask } from "@/app/admin/kanban/actions";
+import { moveTaskStatus, getLoaders, assignLoaderToTask, deleteTask } from "@/app/admin/kanban/actions";
 import { formatSubRole } from "@/lib/utils";
 
 type TaskAssignment = {
@@ -70,15 +70,8 @@ const COLUMNS = [
   { id: "final_approved", label: "Final Approval" }
 ];
 
-/**
- * Maps tasks with `needs_revision` status to the column they should
- * visually appear in. revision_target_status stores the stage the loader
- * needs to work from ("assigned" or "video_generated"), so we display
- * the task there directly.
- */
 function getDisplayColumn(task: Task): string {
   if (task.current_status === "needs_revision") {
-    // revision_target_status is already the column we want to show the task in
     return task.revision_target_status ?? "assigned";
   }
   return task.current_status;
@@ -216,9 +209,108 @@ function AssignModal({
   );
 }
 
+// ── Delete Confirm Modal ──────────────────────────────────────────────────────
+
+function DeleteConfirmModal({
+  task,
+  onClose,
+  onDeleted,
+}: {
+  task: Task;
+  onClose: () => void;
+  onDeleted: (taskId: string) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  const taskLabel = [task.board?.name, task.subject?.name, task.chapter?.name]
+    .filter(Boolean)
+    .join(" • ") || "Task";
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError("");
+    const res = await deleteTask(task.id);
+    if (res.error) {
+      setError(res.error);
+      setDeleting(false);
+    } else {
+      onDeleted(task.id);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-[24px] w-full max-w-sm shadow-[0_20px_60px_0_rgba(0,0,0,0.2)] p-8 relative">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-6 right-6 p-1.5 rounded-full text-body-gray hover:bg-[#f3f3f3] hover:text-deep-charcoal transition-colors"
+          title="Close"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="w-12 h-12 rounded-full bg-warning-red/10 flex items-center justify-center mb-4">
+            <Trash2 className="h-6 w-6 text-warning-red" />
+          </div>
+          <h2 className="text-xl font-semibold text-display-ink">Delete Task?</h2>
+          <p className="text-body-gray text-sm mt-2 leading-relaxed">
+            This will permanently delete{" "}
+            <span className="font-semibold text-deep-charcoal">{taskLabel}</span>{" "}
+            and all its history. This cannot be undone.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-warning-red/10 border border-warning-red/30 text-warning-red text-sm rounded-[8px]">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={deleting}
+            className="flex-1 py-3 rounded-[999px] font-medium border border-[#cccccc] text-body-gray hover:bg-[#f3f3f3] transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 py-3 rounded-[999px] font-medium bg-warning-red text-white hover:bg-[#b91c1c] disabled:opacity-50 transition-all"
+          >
+            {deleting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Deleting...
+              </span>
+            ) : (
+              "Delete Task"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Task Card ────────────────────────────────────────────────────────────────
 
-function SortableTaskCard({ task, onAssignClick }: { task: Task; onAssignClick: (task: Task) => void }) {
+function SortableTaskCard({
+  task,
+  onAssignClick,
+  onDeleteClick,
+}: {
+  task: Task;
+  onAssignClick: (task: Task) => void;
+  onDeleteClick: (task: Task) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id, data: task });
 
   const mergedRef = useCallback(
@@ -232,7 +324,6 @@ function SortableTaskCard({ task, onAssignClick }: { task: Task; onAssignClick: 
     [setNodeRef, transform, transition]
   );
 
-  // Show the most relevant assigned person: prefer current stage, fallback to latest
   const allAssignments = task.task_assignments ?? [];
   const primaryAssignment = allAssignments.find((a) => a.stage === task.current_status)
     ?? allAssignments.find((a) => a.stage === getDisplayColumn(task))
@@ -240,8 +331,10 @@ function SortableTaskCard({ task, onAssignClick }: { task: Task; onAssignClick: 
   const assignedUser = primaryAssignment?.user;
   const isRevision = task.current_status === "needs_revision";
 
-  // Human-readable stage label
   const stageLabel = (stage: string) => stage.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+  // Suppress unused variable warning
+  void assignedUser;
 
   return (
     <div
@@ -262,9 +355,9 @@ function SortableTaskCard({ task, onAssignClick }: { task: Task; onAssignClick: 
         </div>
       )}
 
-      {/* Hierarchy: Scrollable badges for all fields */}
-      <div 
-        className="flex gap-2 overflow-x-auto pb-2 mb-1 shrink-0 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" 
+      {/* Hierarchy: Scrollable badges */}
+      <div
+        className="flex gap-2 overflow-x-auto pb-2 mb-1 shrink-0 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         style={{ WebkitOverflowScrolling: 'touch' }}
         onPointerDown={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
@@ -291,7 +384,7 @@ function SortableTaskCard({ task, onAssignClick }: { task: Task; onAssignClick: 
         )}
       </div>
 
-      {/* Task Title (shows full data) */}
+      {/* Task Title */}
       <p className="text-sm text-deep-charcoal font-medium break-words leading-tight">
         {task.title || [task.board?.name, task.class?.name, task.subject?.name, task.chapter?.name].filter(Boolean).join(" • ") || "Untitled Task"}
       </p>
@@ -351,9 +444,19 @@ function SortableTaskCard({ task, onAssignClick }: { task: Task; onAssignClick: 
         )}
       </div>
 
-      {/* Footer: date */}
-      <div className="mt-2 flex items-center justify-between text-xs text-body-gray">
+      {/* Footer: date + delete */}
+      <div className="mt-2 pt-2 border-t border-[#f3f3f3] flex items-center justify-between text-xs text-body-gray">
         <span suppressHydrationWarning>{new Date(task.created_at).toLocaleDateString("en-IN")}</span>
+        <button
+          type="button"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onDeleteClick(task); }}
+          className="flex items-center gap-1 text-[11px] font-medium text-warning-red hover:bg-warning-red/10 px-2 py-1 rounded-md transition-colors"
+          title="Delete task"
+        >
+          <Trash2 className="h-3 w-3" />
+          Delete
+        </button>
       </div>
     </div>
   );
@@ -365,10 +468,12 @@ function DroppableColumn({
   column,
   tasks,
   onAssignTask,
+  onDeleteTask,
 }: {
   column: typeof COLUMNS[0];
   tasks: Task[];
   onAssignTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const accentColor = getColumnAccentColor(column.id);
@@ -382,7 +487,7 @@ function DroppableColumn({
           : "bg-ice-mist border-[#e5e5e5]"
       }`}
     >
-      {/* Column header with accent top bar */}
+      {/* Column header */}
       <div className="relative">
         <div
           className="absolute top-0 left-0 right-0 h-[3px]"
@@ -402,10 +507,15 @@ function DroppableColumn({
         </div>
       </div>
 
-      <div ref={setNodeRef} className="p-3 flex-1 overflow-y-auto w-full min-h-[400px] max-h-[calc(100vh-280px)]">
+      <div ref={setNodeRef} className="p-3 flex-1 overflow-y-auto w-full min-h-[400px] max-h-[calc(100vh-360px)]">
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
-            <SortableTaskCard key={task.id} task={task} onAssignClick={onAssignTask} />
+            <SortableTaskCard
+              key={task.id}
+              task={task}
+              onAssignClick={onAssignTask}
+              onDeleteClick={onDeleteTask}
+            />
           ))}
           {tasks.length === 0 && (
             <div className="h-full flex items-center justify-center border-2 border-dashed border-[#d1d5db] rounded-[12px] opacity-60 min-h-[100px]">
@@ -425,14 +535,65 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
   const [mounted, setMounted] = useState(false);
   const [loaders, setLoaders] = useState<LoaderProfile[]>([]);
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterLoaderName, setFilterLoaderName] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
   const dragOriginalStatus = useRef<string | null>(null);
   const router = useRouter();
 
-  // Sync local task state whenever the server re-renders with fresh data
   useEffect(() => { setTasks(initialTasks); }, [initialTasks]);
-
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { getLoaders().then(setLoaders); }, []);
+
+  // Unique loader names across all tasks (for dropdown)
+  const assignedLoaderNames = useMemo(() => {
+    const names = new Set<string>();
+    tasks.forEach(task =>
+      task.task_assignments?.forEach(a => {
+        if (a.user?.full_name) names.add(a.user.full_name);
+      })
+    );
+    return Array.from(names).sort();
+  }, [tasks]);
+
+  // Derived: filtered tasks
+  const filteredTasks = useMemo(() => {
+    let result = tasks;
+
+    if (filterLoaderName) {
+      result = result.filter(task =>
+        task.task_assignments?.some(a => a.user?.full_name === filterLoaderName)
+      );
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(task =>
+        task.task_assignments?.some(a => a.user?.full_name?.toLowerCase().includes(q))
+      );
+    }
+
+    if (filterDateFrom) {
+      const from = new Date(filterDateFrom);
+      from.setHours(0, 0, 0, 0);
+      result = result.filter(task => new Date(task.created_at) >= from);
+    }
+
+    if (filterDateTo) {
+      const to = new Date(filterDateTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter(task => new Date(task.created_at) <= to);
+    }
+
+    return result;
+  }, [tasks, filterLoaderName, searchQuery, filterDateFrom, filterDateTo]);
+
+  const hasActiveFilter = filterLoaderName !== "" || searchQuery.trim() !== "" || filterDateFrom !== "" || filterDateTo !== "";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -529,6 +690,10 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
     router.refresh();
   }
 
+  function handleDeleted(taskId: string) {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+  }
+
   if (!mounted) {
     return (
       <div className="w-full overflow-x-auto overflow-y-hidden rounded-[16px] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-[#f3f3f3] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#cccccc] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#a3a3a3] pb-3" style={{ height: 'calc(100vh - 280px)', minHeight: '480px' }}>
@@ -548,7 +713,81 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
 
   return (
     <>
-      <div className="w-full overflow-x-auto overflow-y-hidden rounded-[16px] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-[#f3f3f3] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#cccccc] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#a3a3a3] pb-3" style={{ height: 'calc(100vh - 280px)', minHeight: '480px' }}>
+      {/* ── Filter Bar ── */}
+      <div className="flex flex-wrap gap-3 mb-4 items-center bg-white p-4 rounded-[16px] border border-[#e5e5e5] shadow-sm">
+        {/* Loader dropdown */}
+        <div className="relative min-w-[180px]">
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-body-gray pointer-events-none" />
+          <select
+            aria-label="Filter by loader"
+            value={filterLoaderName}
+            onChange={e => setFilterLoaderName(e.target.value)}
+            className="w-full appearance-none pr-8 pl-3 py-2 text-sm border border-[#cccccc] rounded-[8px] outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all bg-white text-deep-charcoal"
+          >
+            <option value="">All Loaders</option>
+            {assignedLoaderNames.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Search by loader name */}
+        <div className="relative flex-1 min-w-[160px] max-w-[260px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-body-gray pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search loader name..."
+            className="w-full pl-9 pr-3 py-2 text-sm border border-[#cccccc] rounded-[8px] outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all"
+          />
+        </div>
+
+        {/* Date range */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-4 w-4 text-body-gray shrink-0" />
+            <span className="text-xs text-body-gray font-medium">From</span>
+          </div>
+          <input
+            type="date"
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            title="Filter from date"
+            aria-label="Filter from date"
+            className="text-sm border border-[#cccccc] rounded-[8px] px-2.5 py-2 outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all"
+          />
+          <span className="text-body-gray text-xs font-medium">to</span>
+          <input
+            type="date"
+            value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+            title="Filter to date"
+            aria-label="Filter to date"
+            className="text-sm border border-[#cccccc] rounded-[8px] px-2.5 py-2 outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all"
+          />
+        </div>
+
+        {/* Active filter status + clear */}
+        {hasActiveFilter && (
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-xs text-body-gray">
+              Showing <span className="font-semibold text-deep-charcoal">{filteredTasks.length}</span> of {tasks.length} tasks
+            </span>
+            <button
+              type="button"
+              onClick={() => { setFilterLoaderName(""); setSearchQuery(""); setFilterDateFrom(""); setFilterDateTo(""); }}
+              className="flex items-center gap-1.5 text-xs font-medium text-warning-red hover:bg-warning-red/10 px-3 py-1.5 rounded-[8px] transition-colors border border-warning-red/30"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Kanban Board ── */}
+      <div className="w-full overflow-x-auto overflow-y-hidden rounded-[16px] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-[#f3f3f3] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#cccccc] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#a3a3a3] pb-3" style={{ height: 'calc(100vh - 360px)', minHeight: '480px' }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -558,13 +797,14 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
         >
           <div className="flex gap-4 pb-2 pt-2 min-w-max h-full">
             {COLUMNS.map(column => {
-              const columnTasks = tasks.filter(t => getDisplayColumn(t) === column.id);
+              const columnTasks = filteredTasks.filter(t => getDisplayColumn(t) === column.id);
               return (
                 <DroppableColumn
                   key={column.id}
                   column={column}
                   tasks={columnTasks}
                   onAssignTask={setAssigningTask}
+                  onDeleteTask={setDeletingTask}
                 />
               );
             })}
@@ -572,12 +812,21 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
         </DndContext>
       </div>
 
+      {/* ── Modals ── */}
       {assigningTask && (
         <AssignModal
           task={assigningTask}
           loaders={loaders}
           onClose={() => setAssigningTask(null)}
           onAssigned={handleAssigned}
+        />
+      )}
+
+      {deletingTask && (
+        <DeleteConfirmModal
+          task={deletingTask}
+          onClose={() => setDeletingTask(null)}
+          onDeleted={handleDeleted}
         />
       )}
     </>

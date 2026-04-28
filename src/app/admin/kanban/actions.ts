@@ -32,6 +32,13 @@ export async function reorderTaskWithinColumn(_taskId: string, _newOrderPosition
   return { success: true };
 }
 
+export async function deleteTask(taskId: string) {
+  const supabase = createAdminClient();
+  // task_assignments and task_history both have ON DELETE CASCADE on task_id
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+  return { success: !error, error: error?.message };
+}
+
 export async function moveTaskStatus(taskId: string, newStatus: string, userId?: string) {
   const supabase = createAdminClient();
   const { error } = await supabase

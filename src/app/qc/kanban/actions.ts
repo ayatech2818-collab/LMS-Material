@@ -6,25 +6,23 @@ import { revalidatePath } from "next/cache";
 export async function approveTask(taskId: string, userId: string, currentStatus: string) {
   const supabase = createAdminClient();
 
-  // script_generated -> script_approved
-  // video_edited -> final_approved
   const isScript = currentStatus === "script_generated";
-  const nextStatus = isScript ? "script_approved" : "final_approved";
-  const actionName = isScript ? "qc_approved_script" : "qc_approved_video";
 
-  await supabase.from("tasks").update({ current_status: nextStatus }).eq("id", taskId);
+  if (isScript) {
+    // Skip the script_approved holding stage — advance directly to video_generated
+    // so the task automatically appears in the Video Generated column for the next
+    // person to act on, with no manual drag required.
+    await supabase.from("tasks").update({ current_status: "video_generated" }).eq("id", taskId);
 
-  await supabase.from("task_history").insert({
-    task_id: taskId,
-    changed_by: userId,
-    new_status: nextStatus,
-    action: actionName,
-    notes: "QC Approved"
-  });
+    await supabase.from("task_history").insert({
+      task_id: taskId,
+      changed_by: userId,
+      new_status: "video_generated",
+      action: "qc_approved_script",
+      notes: "QC Approved — auto-advanced to video stage"
+    });
 
-  // Auto-assign the next pipeline stage
-  if (nextStatus === "script_approved") {
-    // Try to find a dedicated video_audio_generator
+    // Try to find a dedicated video_audio_generator and reassign to them
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id")
@@ -33,7 +31,6 @@ export async function approveTask(taskId: string, userId: string, currentStatus:
       .limit(1);
 
     if (profiles && profiles.length > 0) {
-      // A dedicated video person exists — re-assign to them
       await supabase.from("task_assignments").delete().eq("task_id", taskId);
       await supabase.from("task_assignments").insert({
         task_id: taskId,
@@ -41,8 +38,19 @@ export async function approveTask(taskId: string, userId: string, currentStatus:
         stage: "video_generated"
       });
     }
-    // If no video_audio_generator is found, keep the existing assignment so
-    // the original loader can continue with the video/final stage.
+    // If no dedicated video person exists, the original loader's assignment is
+    // kept so they can submit the video work from their board.
+  } else {
+    // video_edited -> final_approved
+    await supabase.from("tasks").update({ current_status: "final_approved" }).eq("id", taskId);
+
+    await supabase.from("task_history").insert({
+      task_id: taskId,
+      changed_by: userId,
+      new_status: "final_approved",
+      action: "qc_approved_video",
+      notes: "QC Approved"
+    });
   }
 
   revalidatePath("/qc");
