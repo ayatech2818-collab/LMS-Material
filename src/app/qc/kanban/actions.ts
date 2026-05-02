@@ -9,36 +9,49 @@ export async function approveTask(taskId: string, userId: string, currentStatus:
   const isScript = currentStatus === "script_generated";
 
   if (isScript) {
-    // Skip the script_approved holding stage — advance directly to video_generated
-    // so the task automatically appears in the Video Generated column for the next
-    // person to act on, with no manual drag required.
-    await supabase.from("tasks").update({ current_status: "video_generated" }).eq("id", taskId);
+    await supabase.from("tasks").update({ current_status: "script_approved" }).eq("id", taskId);
 
     await supabase.from("task_history").insert({
       task_id: taskId,
       changed_by: userId,
-      new_status: "video_generated",
+      new_status: "script_approved",
       action: "qc_approved_script",
-      notes: "QC Approved — auto-advanced to video stage"
+      notes: "QC Approved"
     });
 
     // Try to find a dedicated video_audio_generator and reassign to them
-    const { data: profiles } = await supabase
+    const { data: specialists } = await supabase
       .from("profiles")
       .select("id")
       .eq("sub_role", "video_audio_generator")
-      .eq("is_active", true)
-      .limit(1);
+      .eq("is_active", true);
 
-    if (profiles && profiles.length > 0) {
+    if (specialists && specialists.length > 0) {
+      // Count non-completed active tasks for each
+      const counts = await Promise.all(
+        specialists.map(async (s) => {
+          const { count } = await supabase
+            .from("task_assignments")
+            .select("id, tasks!inner(current_status)", { count: "exact", head: true })
+            .eq("user_id", s.id)
+            .neq("tasks.current_status", "final_approved");
+          return { id: s.id, count: count ?? 0 };
+        })
+      );
+
+      // Find minimum; break ties randomly
+      const min = Math.min(...counts.map((c) => c.count));
+      const tied = counts.filter((c) => c.count === min);
+      const selected = tied[Math.floor(Math.random() * tied.length)];
+
       await supabase.from("task_assignments").delete().eq("task_id", taskId);
       await supabase.from("task_assignments").insert({
         task_id: taskId,
-        user_id: profiles[0].id,
-        stage: "video_generated"
+        user_id: selected.id,
+        stage: "script_approved"
       });
     }
-    // If no dedicated video person exists, the original loader's assignment is
+    // If no dedicated video person exists, the original script_writer's assignment is
     // kept so they can submit the video work from their board.
   } else {
     // video_edited -> final_approved

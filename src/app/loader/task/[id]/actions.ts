@@ -39,8 +39,7 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
       break;
     }
     case "script_approved":
-      // Script has been QC-approved; loader now submits the final product for the 2nd QC review
-      nextStatus = "video_edited";
+      nextStatus = "video_generated";
       break;
     case "video_generated":
       // Dedicated video-audio generator finished; submit to QC for final review
@@ -67,6 +66,39 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
     proof_url: proofUrl,
     notes: notes
   });
+
+  if (task.current_status === "script_approved") {
+    // After status update: auto-assign to least-busy video_editor
+    const { data: specialists } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("sub_role", "video_editor")
+      .eq("is_active", true);
+
+    if (specialists && specialists.length > 0) {
+      const counts = await Promise.all(
+        specialists.map(async (s) => {
+          const { count } = await supabase
+            .from("task_assignments")
+            .select("id, tasks!inner(current_status)", { count: "exact", head: true })
+            .eq("user_id", s.id)
+            .neq("tasks.current_status", "final_approved");
+          return { id: s.id, count: count ?? 0 };
+        })
+      );
+
+      const min = Math.min(...counts.map((c) => c.count));
+      const tied = counts.filter((c) => c.count === min);
+      const selected = tied[Math.floor(Math.random() * tied.length)];
+
+      await supabase.from("task_assignments").delete().eq("task_id", taskId);
+      await supabase.from("task_assignments").insert({
+        task_id: taskId,
+        user_id: selected.id,
+        stage: "video_generated",
+      });
+    }
+  }
 
   revalidatePath("/loader");
   revalidatePath("/loader/task/" + taskId);

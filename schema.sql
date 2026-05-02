@@ -111,6 +111,7 @@ CREATE TABLE public.tasks (
   subject_id      UUID NOT NULL REFERENCES public.hierarchies(id),
   chapter_id      UUID NOT NULL REFERENCES public.hierarchies(id),
   current_status  task_status NOT NULL DEFAULT 'assigned',
+  revision_target_status task_status DEFAULT NULL,
   revision_count  INT DEFAULT 0,
   created_by      UUID REFERENCES public.profiles(id),
   created_at      TIMESTAMPTZ DEFAULT now(),

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(curl -s -L -c /tmp/cookies.txt -w \"\\\\nHTTP_STATUS:%{http_code}\\\\nFINAL_URL:%{url_effective}\\\\n\" http://localhost:3000/)",
-      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\" http://localhost:3000/login)"
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(xargs grep *)"
     ]
   }
 }
