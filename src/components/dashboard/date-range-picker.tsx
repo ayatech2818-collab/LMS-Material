@@ -28,21 +28,21 @@ export function DateRangePicker() {
   const hasFilter = from || to;
 
   return (
-    <div className="flex items-center gap-2 bg-white border border-[#e5e5e5] rounded-[6px] px-3 py-2 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
-      <CalendarIcon className="w-4 h-4 text-body-gray shrink-0" />
+    <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#3c3c3c] px-3 py-2">
+      <CalendarIcon className="w-4 h-4 text-[#7e7e7e] shrink-0" />
       <input
         type="date"
         value={from}
         onChange={(e) => updateParams(e.target.value, to)}
-        className="bg-transparent text-sm text-deep-charcoal outline-none placeholder:text-mute-gray [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 cursor-pointer"
+        className="bg-transparent text-sm text-[#e6e6e6] outline-none [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:invert hover:[&::-webkit-calendar-picker-indicator]:opacity-80 cursor-pointer"
         title="Start Date"
       />
-      <span className="text-body-gray text-xs font-semibold px-1">to</span>
+      <span className="text-[#7e7e7e] text-xs font-bold px-1 uppercase tracking-[1px]">to</span>
       <input
         type="date"
         value={to}
         onChange={(e) => updateParams(from, e.target.value)}
-        className="bg-transparent text-sm text-deep-charcoal outline-none placeholder:text-mute-gray [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 cursor-pointer"
+        className="bg-transparent text-sm text-[#e6e6e6] outline-none [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:invert hover:[&::-webkit-calendar-picker-indicator]:opacity-80 cursor-pointer"
         title="End Date"
       />
       {hasFilter && (
@@ -50,7 +50,7 @@ export function DateRangePicker() {
           type="button"
           onClick={handleClear}
           title="Clear date filter"
-          className="ml-1 p-0.5 rounded-full text-body-gray hover:text-warning-red hover:bg-warning-red/10 transition-colors"
+          className="ml-1 p-1 rounded-full text-[#7e7e7e] hover:text-[#e22718] hover:bg-[#e22718]/10 transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>

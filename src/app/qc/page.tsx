@@ -21,16 +21,11 @@ export default async function QCDashboard({
   const adminSupabase = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Build a helper to apply optional date range to a query
-  // We apply date filters on task_history using created_at
-
-  // Awaiting Review — no date filter (these are current, not historical)
   const { count: awaitingReview } = await adminSupabase
     .from("tasks")
     .select("*", { count: "exact", head: true })
     .in("current_status", ["script_generated", "video_edited"]);
 
-  // My Approved — filtered by date if provided
   let approvedQuery = adminSupabase
     .from("task_history")
     .select("*", { count: "exact", head: true })
@@ -40,7 +35,6 @@ export default async function QCDashboard({
   if (toDate) approvedQuery = approvedQuery.lte("created_at", toDate.toISOString());
   const { count: myApproved } = await approvedQuery;
 
-  // My Rejected — filtered by date if provided
   let rejectedQuery = adminSupabase
     .from("task_history")
     .select("*", { count: "exact", head: true })
@@ -50,7 +44,6 @@ export default async function QCDashboard({
   if (toDate) rejectedQuery = rejectedQuery.lte("created_at", toDate.toISOString());
   const { count: myRejected } = await rejectedQuery;
 
-  // Quick Access: tasks currently awaiting review
   const { data: pendingTasks } = await adminSupabase
     .from("tasks")
     .select(`
@@ -64,78 +57,79 @@ export default async function QCDashboard({
   return (
     <>
       <Header title="QC Dashboard" />
-      <div className="max-w-[1920px] mx-auto space-y-8">
-        
+      <div className="max-w-[1920px] mx-auto space-y-6 md:space-y-8">
+
         {/* Header & Date Filter */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
-            <h2 className="text-3xl font-light text-display-ink tracking-wide mb-1">
+            <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-1">
               Quality Assurance
             </h2>
-            <p className="text-body-gray">
+            <p className="text-[#bbbbbb] text-sm">
               Monitor your review performance and pipeline health.
             </p>
           </div>
-          <Suspense fallback={<div className="h-9 w-48 bg-[#f3f3f3] rounded-[6px] animate-pulse" />}>
+          <Suspense fallback={<div className="h-9 w-48 bg-[#1a1a1a] border border-[#3c3c3c] animate-pulse" />}>
             <DateRangePicker />
           </Suspense>
         </section>
 
         {/* KPIs */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-[24px] border border-[#f3f3f3] shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <div className="flex justify-between items-start mb-6">
-              <h3 className="text-body-gray font-medium">Awaiting Review</h3>
-              <div className="p-3 bg-commerce-orange/10 rounded-full">
-                <FileSearch className="h-6 w-6 text-commerce-orange" />
+              <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase">Awaiting Review</h3>
+              <div className="p-2 bg-[#e22718]/10 border border-[#e22718]/20">
+                <FileSearch className="h-5 w-5 text-[#e22718]" />
               </div>
             </div>
-            <p className="text-[40px] font-light text-display-ink">{awaitingReview || 0}</p>
+            <p className="text-[40px] font-light text-white leading-none">{awaitingReview || 0}</p>
           </div>
 
-          <div className="bg-white p-6 rounded-[24px] border border-[#f3f3f3] shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <div className="flex justify-between items-start mb-6">
-              <h3 className="text-body-gray font-medium">My Approved</h3>
-              <div className="p-3 bg-[#2e7d32]/10 rounded-full">
-                <CheckCircle2 className="h-6 w-6 text-[#2e7d32]" />
+              <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase">My Approved</h3>
+              <div className="p-2 bg-[#0fa336]/10 border border-[#0fa336]/20">
+                <CheckCircle2 className="h-5 w-5 text-[#0fa336]" />
               </div>
             </div>
-            <p className="text-[40px] font-light text-display-ink">{myApproved || 0}</p>
+            <p className="text-[40px] font-light text-white leading-none">{myApproved || 0}</p>
           </div>
-          
-          <div className="bg-white p-6 rounded-[24px] border border-[#f3f3f3] shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
+
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <div className="flex justify-between items-start mb-6">
-              <h3 className="text-body-gray font-medium">My Rejected</h3>
-              <div className="p-3 bg-warning-red/10 rounded-full">
-                <XCircle className="h-6 w-6 text-warning-red" />
+              <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase">My Rejected</h3>
+              <div className="p-2 bg-[#e22718]/10 border border-[#e22718]/20">
+                <XCircle className="h-5 w-5 text-[#e22718]" />
               </div>
             </div>
-            <p className="text-[40px] font-light text-display-ink">{myRejected || 0}</p>
+            <p className="text-[40px] font-light text-white leading-none">{myRejected || 0}</p>
           </div>
         </section>
 
         {/* Quick Access */}
-        <section className="bg-white border border-[#f3f3f3] rounded-[24px] overflow-hidden shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
-          <div className="p-6 border-b border-[#f3f3f3] flex justify-between items-center bg-ice-mist">
-            <h3 className="font-semibold text-deep-charcoal text-lg">Priority Review Queue</h3>
-            <Link href="/qc/kanban" className="text-sm font-medium text-ps-blue hover:text-ps-blue/80 transition-colors">
-              View QC Kanban →
+        <section className="bg-[#1a1a1a] border border-[#3c3c3c] overflow-hidden">
+          <div className="px-5 md:px-6 py-4 border-b border-[#3c3c3c] flex justify-between items-center bg-[#0d0d0d]">
+            <h3 className="text-xs font-bold text-white tracking-[2px] uppercase">Priority Review Queue</h3>
+            <Link href="/qc/kanban" className="text-xs font-bold text-[#0066b1] hover:text-[#1c69d4] tracking-[1px] uppercase transition-colors">
+              View Kanban →
             </Link>
           </div>
-          <div className="p-0">
+          <div>
             {pendingTasks && pendingTasks.length > 0 ? (
-              <ul className="divide-y divide-[#f3f3f3]">
+              <ul className="divide-y divide-[#3c3c3c]">
                 {pendingTasks.map((task: any) => (
-                  <li key={task.id} className="p-6 hover:bg-ice-mist transition-colors flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-deep-charcoal mb-1">{task.title}</p>
-                      <p className="text-sm text-body-gray">
-                        Chapter: {task.chapter?.name || "Unknown"} • Stage: <span className="text-commerce-orange">{task.current_status.replace(/_/g, ' ')}</span>
+                  <li key={task.id} className="px-5 md:px-6 py-4 hover:bg-[#262626] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{task.title}</p>
+                      <p className="text-xs text-[#7e7e7e]">
+                        Chapter: {task.chapter?.name || "Unknown"} •{" "}
+                        <span className="text-[#e22718] uppercase font-bold">{task.current_status.replace(/_/g, ' ')}</span>
                       </p>
                     </div>
-                    <Link 
-                      href="/qc/kanban" 
-                      className="px-6 py-2 bg-white border border-[#e5e5e5] rounded-full text-sm font-medium text-deep-charcoal hover:border-black transition-colors"
+                    <Link
+                      href="/qc/kanban"
+                      className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
                     >
                       Review
                     </Link>
@@ -143,9 +137,9 @@ export default async function QCDashboard({
                 ))}
               </ul>
             ) : (
-              <div className="p-12 text-center text-body-gray">
-                <FileSearch className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>You have cleared the review queue. Excellent work!</p>
+              <div className="p-12 text-center text-[#7e7e7e]">
+                <FileSearch className="h-10 w-10 mx-auto mb-4 opacity-40" />
+                <p className="text-sm">You have cleared the review queue. Excellent work!</p>
               </div>
             )}
           </div>

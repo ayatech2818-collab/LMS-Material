@@ -17,6 +17,10 @@ export async function getKanbanTasks() {
       task_assignments(
         stage,
         user:user_id(full_name, avatar_url, sub_role)
+      ),
+      task_history(
+        proof_url,
+        created_at
       )
     `)
     .order("created_at", { ascending: false });

@@ -21,7 +21,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { UserPlus, X, Loader2, AlertTriangle, Trash2, Search, Calendar, ChevronDown } from "lucide-react";
+import { UserPlus, X, Loader2, AlertTriangle, Trash2, Search, Calendar, ChevronDown, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { moveTaskStatus, getLoaders, assignLoaderToTask, deleteTask } from "@/app/admin/kanban/actions";
 import { formatSubRole } from "@/lib/utils";
@@ -33,6 +33,11 @@ type TaskAssignment = {
     sub_role: string | null;
     avatar_url: string | null;
   } | null;
+};
+
+type TaskHistory = {
+  proof_url: string | null;
+  created_at: string;
 };
 
 export type Task = {
@@ -47,6 +52,7 @@ export type Task = {
   chapter?: { name: string } | null;
   hierarchies?: { name: string } | null;
   task_assignments?: TaskAssignment[];
+  task_history?: TaskHistory[];
 };
 
 type LoaderProfile = {
@@ -62,12 +68,12 @@ type KanbanBoardProps = {
 };
 
 const COLUMNS = [
-  { id: "assigned", label: "Assigned" },
-  { id: "script_generated", label: "Script Generated" },
-  { id: "script_approved", label: "Script Approval" },
-  { id: "video_generated", label: "Video Generated" },
-  { id: "video_edited", label: "Video Edited" },
-  { id: "final_approved", label: "Final Approval" }
+  { id: "assigned",        label: "Assigned",         topClass: "[border-top:3px_solid_#6366f1]", countClass: "text-[#818cf8] border-[#6366f1]/30 bg-[#6366f1]/10" },
+  { id: "script_generated",label: "Script Generated", topClass: "[border-top:3px_solid_#0066b1]", countClass: "text-[#0066b1] border-[#0066b1]/30 bg-[#0066b1]/10" },
+  { id: "script_approved", label: "Script Approval",  topClass: "[border-top:3px_solid_#0fa336]", countClass: "text-[#0fa336] border-[#0fa336]/30 bg-[#0fa336]/10" },
+  { id: "video_generated", label: "Video Generated",  topClass: "[border-top:3px_solid_#f4b400]", countClass: "text-[#f4b400] border-[#f4b400]/30 bg-[#f4b400]/10" },
+  { id: "video_edited",    label: "Video Edited",     topClass: "[border-top:3px_solid_#a78bfa]", countClass: "text-[#a78bfa] border-[#7c3aed]/30 bg-[#7c3aed]/10" },
+  { id: "final_approved",  label: "Final Approval",   topClass: "[border-top:3px_solid_#0fa336]", countClass: "text-[#0fa336] border-[#0fa336]/30 bg-[#0fa336]/10" },
 ];
 
 function getDisplayColumn(task: Task): string {
@@ -77,24 +83,12 @@ function getDisplayColumn(task: Task): string {
   return task.current_status;
 }
 
-function getSubRoleBadgeColor(subRole: string | null | undefined) {
+function getSubRoleBadgeClass(subRole: string | null | undefined) {
   switch (subRole) {
-    case "script_writer": return "bg-ps-cyan/15 text-[#008ba8]";
-    case "video_audio_generator": return "bg-commerce-orange/15 text-commerce-orange";
-    case "video_editor": return "bg-[#7c4dff]/15 text-[#7c4dff]";
-    default: return "bg-[#e5e5e5] text-body-gray";
-  }
-}
-
-function getColumnAccentColor(columnId: string) {
-  switch (columnId) {
-    case "assigned": return "#6366f1";
-    case "script_generated": return "#008ba8";
-    case "script_approved": return "#2e7d32";
-    case "video_generated": return "#e67e22";
-    case "video_edited": return "#7c4dff";
-    case "final_approved": return "#16a34a";
-    default: return "#6b7280";
+    case "script_writer":          return "border border-[#0066b1] text-[#0066b1]";
+    case "video_audio_generator":  return "border border-[#f4b400] text-[#f4b400]";
+    case "video_editor":           return "border border-[#a78bfa] text-[#a78bfa]";
+    default:                       return "border border-[#3c3c3c] text-[#7e7e7e]";
   }
 }
 
@@ -135,35 +129,35 @@ function AssignModal({
     .join(" • ") || "Task";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[24px] w-full max-w-sm shadow-[0_20px_60px_0_rgba(0,0,0,0.2)] p-8 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-[#1a1a1a] border border-[#3c3c3c] w-full max-w-sm p-8 relative">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-6 right-6 p-1.5 rounded-full text-body-gray hover:bg-[#f3f3f3] hover:text-deep-charcoal transition-colors"
+          className="absolute top-5 right-5 p-1.5 rounded-full text-[#7e7e7e] hover:bg-[#3c3c3c] hover:text-white transition-colors"
           title="Close"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="mb-5">
-          <h2 className="text-xl font-light text-display-ink">Assign Loader</h2>
-          <p className="text-body-gray text-sm mt-1 truncate">{taskLabel}</p>
+          <h2 className="text-xs font-bold text-[#7e7e7e] uppercase tracking-[3px] mb-1">Assign Loader</h2>
+          <p className="text-[#bbbbbb] text-sm truncate">{taskLabel}</p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-warning-red/10 border border-warning-red/30 text-warning-red text-sm rounded-[8px]">
+          <div className="mb-4 p-3 bg-[#e22718]/10 border border-[#e22718]/30 text-[#e22718] text-sm">
             {error}
           </div>
         )}
 
         <div className="space-y-3">
-          <label className="text-sm font-semibold text-deep-charcoal">Material Loader</label>
+          <label className="text-[10px] font-bold text-[#bbbbbb] uppercase tracking-[1.5px] block">Material Loader</label>
           <select
             aria-label="Select Material Loader"
             value={selectedLoader}
             onChange={e => setSelectedLoader(e.target.value)}
-            className="w-full border border-[#cccccc] rounded-[8px] p-2.5 outline-none focus:border-ps-blue focus:ring-2 focus:ring-ps-blue/20 transition-all text-sm"
+            className="w-full bg-[#0d0d0d] border border-[#3c3c3c] p-2.5 outline-none focus:border-[#0066b1] transition-all text-sm text-[#e6e6e6]"
           >
             <option value="">Select a Loader...</option>
             {loaders.map(l => (
@@ -174,15 +168,15 @@ function AssignModal({
           </select>
 
           {selectedLoaderData && (
-            <div className="flex items-center gap-3 p-3 bg-ice-mist rounded-[10px] border border-[#e5e5e5]">
-              <div className="w-8 h-8 rounded-full bg-ps-blue flex items-center justify-center text-white text-sm font-semibold shrink-0">
+            <div className="flex items-center gap-3 p-3 bg-[#262626] border border-[#3c3c3c]">
+              <div className="w-8 h-8 bg-[#0066b1] flex items-center justify-center text-white text-sm font-bold shrink-0">
                 {selectedLoaderData.full_name?.charAt(0)?.toUpperCase() || "?"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-deep-charcoal truncate">{selectedLoaderData.full_name}</p>
-                <p className="text-xs text-body-gray truncate">{selectedLoaderData.email}</p>
+                <p className="text-sm font-medium text-[#e6e6e6] truncate">{selectedLoaderData.full_name}</p>
+                <p className="text-xs text-[#7e7e7e] truncate">{selectedLoaderData.email}</p>
               </div>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${getSubRoleBadgeColor(selectedLoaderData.sub_role)}`}>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 shrink-0 ${getSubRoleBadgeClass(selectedLoaderData.sub_role)} uppercase tracking-[1px]`}>
                 {formatSubRole(selectedLoaderData.sub_role)}
               </span>
             </div>
@@ -193,7 +187,7 @@ function AssignModal({
           type="button"
           onClick={handleSubmit}
           disabled={submitting || !selectedLoader}
-          className="w-full mt-6 bg-ps-blue text-white py-3 rounded-[999px] font-medium transition-all hover:bg-ps-cyan disabled:opacity-50 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100 shadow-[0_5px_9px_0_rgba(0,0,0,0.12)]"
+          className="w-full mt-6 btn-m disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white"
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">
@@ -241,31 +235,31 @@ function DeleteConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[24px] w-full max-w-sm shadow-[0_20px_60px_0_rgba(0,0,0,0.2)] p-8 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-[#1a1a1a] border border-[#3c3c3c] w-full max-w-sm p-8 relative">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-6 right-6 p-1.5 rounded-full text-body-gray hover:bg-[#f3f3f3] hover:text-deep-charcoal transition-colors"
+          className="absolute top-5 right-5 p-1.5 rounded-full text-[#7e7e7e] hover:bg-[#3c3c3c] hover:text-white transition-colors"
           title="Close"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-full bg-warning-red/10 flex items-center justify-center mb-4">
-            <Trash2 className="h-6 w-6 text-warning-red" />
+          <div className="w-12 h-12 bg-[#e22718]/10 border border-[#e22718]/30 flex items-center justify-center mb-4">
+            <Trash2 className="h-6 w-6 text-[#e22718]" />
           </div>
-          <h2 className="text-xl font-semibold text-display-ink">Delete Task?</h2>
-          <p className="text-body-gray text-sm mt-2 leading-relaxed">
+          <h2 className="text-sm font-bold text-white uppercase tracking-[2px]">Delete Task?</h2>
+          <p className="text-[#bbbbbb] text-sm mt-2 leading-relaxed">
             This will permanently delete{" "}
-            <span className="font-semibold text-deep-charcoal">{taskLabel}</span>{" "}
+            <span className="font-bold text-[#e6e6e6]">{taskLabel}</span>{" "}
             and all its history. This cannot be undone.
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-warning-red/10 border border-warning-red/30 text-warning-red text-sm rounded-[8px]">
+          <div className="mb-4 p-3 bg-[#e22718]/10 border border-[#e22718]/30 text-[#e22718] text-sm">
             {error}
           </div>
         )}
@@ -275,7 +269,7 @@ function DeleteConfirmModal({
             type="button"
             onClick={onClose}
             disabled={deleting}
-            className="flex-1 py-3 rounded-[999px] font-medium border border-[#cccccc] text-body-gray hover:bg-[#f3f3f3] transition-colors disabled:opacity-50"
+            className="flex-1 py-3 font-bold text-xs tracking-[1.5px] uppercase border border-[#3c3c3c] text-[#bbbbbb] hover:bg-[#3c3c3c] hover:text-white transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -283,7 +277,7 @@ function DeleteConfirmModal({
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="flex-1 py-3 rounded-[999px] font-medium bg-warning-red text-white hover:bg-[#b91c1c] disabled:opacity-50 transition-all"
+            className="flex-1 py-3 font-bold text-xs tracking-[1.5px] uppercase bg-[#e22718] border border-[#e22718] text-white hover:bg-[#c41f12] disabled:opacity-50 transition-all"
           >
             {deleting ? (
               <span className="flex items-center justify-center gap-2">
@@ -325,138 +319,131 @@ function SortableTaskCard({
   );
 
   const allAssignments = task.task_assignments ?? [];
-  const primaryAssignment = allAssignments.find((a) => a.stage === task.current_status)
-    ?? allAssignments.find((a) => a.stage === getDisplayColumn(task))
-    ?? allAssignments[allAssignments.length - 1];
-  const assignedUser = primaryAssignment?.user;
   const isRevision = task.current_status === "needs_revision";
 
-  const stageLabel = (stage: string) => stage.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const chapterName = task.chapter?.name || task.hierarchies?.name;
+  const breadcrumb = [task.board?.name, task.class?.name, task.subject?.name].filter(Boolean).join(" › ");
+  const displayTitle = chapterName || task.title || "Untitled Task";
 
-  // Suppress unused variable warning
-  void assignedUser;
+  const latestProof = task.task_history
+    ?.filter(h => h.proof_url)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]?.proof_url;
 
   return (
     <div
       ref={mergedRef}
       {...attributes}
       {...listeners}
-      className={`bg-white p-3 rounded-[12px] shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] mb-2.5 cursor-grab hover:shadow-[0_5px_9px_0_rgba(0,0,0,0.16)] transition-all ${
+      className={`bg-[#141414] mb-2 cursor-grab transition-all border overflow-hidden ${
         isRevision
-          ? "border-2 border-warning-red/50 ring-1 ring-warning-red/20"
-          : "border border-[#f3f3f3]"
+          ? "border-[#e22718]/50 ring-1 ring-[#e22718]/20"
+          : "border-[#3c3c3c] hover:border-[#7e7e7e]"
       }`}
     >
-      {/* Needs Revision flag */}
+      {/* Revision banner — full-width strip at top of card */}
       {isRevision && (
-        <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 bg-warning-red/10 rounded-[8px] border border-warning-red/20">
-          <AlertTriangle className="h-3.5 w-3.5 text-warning-red shrink-0" />
-          <span className="text-[11px] font-bold text-warning-red uppercase tracking-wide">Needs Revision</span>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#e22718]/10 border-b border-[#e22718]/20">
+          <AlertTriangle className="h-3 w-3 text-[#e22718] shrink-0" />
+          <span className="text-[9px] font-bold text-[#e22718] uppercase tracking-[1.5px]">Needs Revision</span>
         </div>
       )}
 
-      {/* Hierarchy: Scrollable badges */}
-      <div
-        className="flex gap-2 overflow-x-auto pb-2 mb-1 shrink-0 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        style={{ WebkitOverflowScrolling: 'touch' }}
-        onPointerDown={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-      >
-        {task.board?.name && (
-          <span className="text-[10px] font-semibold text-ps-blue bg-ps-blue/10 px-2 py-1 rounded-md whitespace-nowrap shrink-0">
-            {task.board.name}
-          </span>
+      <div className="p-3 sm:p-4 flex flex-col h-full">
+        {/* Breadcrumb path: Board › Class › Subject */}
+        {breadcrumb && (
+          <p className="text-[10px] sm:text-[11px] text-[#7e7e7e] uppercase tracking-[0.5px] truncate mb-1.5 leading-none">
+            {breadcrumb}
+          </p>
         )}
-        {task.class?.name && (
-          <span className="text-[10px] font-semibold text-ps-cyan bg-ps-cyan/10 px-2 py-1 rounded-md whitespace-nowrap shrink-0">
-            {task.class.name}
-          </span>
-        )}
-        {task.subject?.name && (
-          <span className="text-[10px] font-semibold text-commerce-orange bg-commerce-orange/10 px-2 py-1 rounded-md whitespace-nowrap shrink-0">
-            {task.subject.name}
-          </span>
-        )}
-        {(task.chapter?.name || task.hierarchies?.name) && (
-          <span className="text-[10px] font-semibold text-[#7c4dff] bg-[#7c4dff]/10 px-2 py-1 rounded-md whitespace-nowrap shrink-0">
-            {task.chapter?.name || task.hierarchies?.name}
-          </span>
-        )}
-      </div>
 
-      {/* Task Title */}
-      <p className="text-sm text-deep-charcoal font-medium break-words leading-tight">
-        {task.title || [task.board?.name, task.class?.name, task.subject?.name, task.chapter?.name].filter(Boolean).join(" • ") || "Untitled Task"}
-      </p>
+        {/* Chapter name — primary title & Link */}
+        <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
+          <p className="text-xs sm:text-sm font-bold text-[#e6e6e6] leading-snug break-words">
+            {displayTitle}
+          </p>
+          {latestProof && (
+            <a
+              href={latestProof}
+              target="_blank"
+              rel="noopener noreferrer"
+              onPointerDown={e => e.stopPropagation()}
+              className="shrink-0 flex items-center justify-center h-7 w-7 rounded bg-[#0066b1]/10 text-[#0066b1] hover:bg-[#0066b1] hover:text-white transition-colors border border-[#0066b1]/20 mt-0.5"
+              title="View latest submitted work"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
 
-      {/* Assigned users section */}
-      <div className="mt-3 pt-3 border-t border-[#f3f3f3]">
-        {allAssignments.length > 0 ? (
-          <div className="space-y-2">
-            {allAssignments.map((a, idx) => {
-              const user = a.user;
-              if (!user) return null;
-              return (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-ps-blue flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                    {user.full_name?.charAt(0)?.toUpperCase() || "?"}
+        {/* Assignments */}
+        <div className="mt-auto border-t border-[#3c3c3c] pt-3">
+          {allAssignments.length > 0 ? (
+            <div className="space-y-2.5">
+              {allAssignments.map((a, idx) => {
+                const user = a.user;
+                if (!user) return null;
+                return (
+                  <div key={idx} className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 bg-[#0066b1] rounded-sm flex items-center justify-center text-white text-[10px] sm:text-[11px] font-bold shrink-0">
+                      {user.full_name?.charAt(0)?.toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col">
+                      <span className="text-[11px] sm:text-xs text-[#e6e6e6] font-medium truncate">
+                        {user.full_name}
+                      </span>
+                      <span className={`text-[9px] font-bold mt-0.5 truncate tracking-[0.5px] ${getSubRoleBadgeClass(user.sub_role).replace('border', '').replace('px-1 py-0.5', '')}`}>
+                        {formatSubRole(user.sub_role)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs text-deep-charcoal font-medium truncate block">
-                      {user.full_name}
-                    </span>
-                    <span className="text-[10px] text-body-gray">
-                      {stageLabel(a.stage)}
-                    </span>
-                  </div>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${getSubRoleBadgeColor(user.sub_role)}`}>
-                    {formatSubRole(user.sub_role)}
-                  </span>
-                </div>
-              );
-            })}
-            {/* Re-assign button */}
+                );
+              })}
+              <button
+                type="button"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onAssignClick(task); }}
+                className="w-full mt-2 flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-[#0066b1] hover:bg-[#0066b1]/10 py-2 transition-colors uppercase tracking-[1px] border border-[#0066b1]/20 rounded-sm"
+                title="Reassign loader"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Reassign
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] sm:text-xs text-[#7e7e7e] italic">Unassigned</span>
+              <button
+                type="button"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onAssignClick(task); }}
+                className="shrink-0 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-[#0066b1] hover:bg-[#0066b1]/10 px-3 py-1.5 transition-colors uppercase tracking-[1px] border border-[#0066b1]/20 rounded-sm"
+                title="Assign loader"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Assign
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer: date + actions */}
+        <div className="mt-3 pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
+          <span className="text-[10px] sm:text-[11px] text-[#7e7e7e]" suppressHydrationWarning>
+            {new Date(task.created_at).toLocaleDateString("en-IN", { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+          {task.current_status !== "final_approved" && (
             <button
               type="button"
               onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); onAssignClick(task); }}
-              className="flex items-center gap-1 text-[11px] font-medium text-ps-blue hover:bg-ps-blue/10 px-2 py-1 rounded-md transition-colors w-full justify-center"
-              title="Reassign loader"
+              onClick={e => { e.stopPropagation(); onDeleteClick(task); }}
+              className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-[#e22718]/80 hover:text-[#e22718] hover:bg-[#e22718]/10 px-2 py-1.5 transition-colors rounded-sm"
+              title="Delete task"
             >
-              <UserPlus className="h-3 w-3" />
-              Reassign
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
             </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-body-gray italic">No loader assigned</span>
-            <button
-              type="button"
-              onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); onAssignClick(task); }}
-              className="flex items-center gap-1 text-xs font-medium text-ps-blue hover:bg-ps-blue/10 px-2 py-1 rounded-md transition-colors"
-              title="Assign loader"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              Assign
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Footer: date + delete */}
-      <div className="mt-2 pt-2 border-t border-[#f3f3f3] flex items-center justify-between text-xs text-body-gray">
-        <span suppressHydrationWarning>{new Date(task.created_at).toLocaleDateString("en-IN")}</span>
-        <button
-          type="button"
-          onPointerDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); onDeleteClick(task); }}
-          className="flex items-center gap-1 text-[11px] font-medium text-warning-red hover:bg-warning-red/10 px-2 py-1 rounded-md transition-colors"
-          title="Delete task"
-        >
-          <Trash2 className="h-3 w-3" />
-          Delete
-        </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -476,35 +463,20 @@ function DroppableColumn({
   onDeleteTask: (task: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
-  const accentColor = getColumnAccentColor(column.id);
-  const isFinal = column.id === "final_approved";
 
   return (
     <div
-      className={`w-[280px] shrink-0 flex flex-col rounded-[20px] overflow-hidden border transition-all duration-200 ${
+      className={`w-[85vw] sm:w-[300px] shrink-0 flex flex-col overflow-hidden border transition-all duration-200 ${
         isOver
-          ? "border-ps-blue/50 shadow-[0_0_0_2px_rgba(59,130,246,0.2)]"
-          : "bg-ice-mist border-[#e5e5e5]"
-      }`}
+          ? "border-[#0066b1]/50 bg-[#0066b1]/5"
+          : "bg-[#1a1a1a] border-[#3c3c3c]"
+      } ${column.topClass}`}
     >
-      {/* Column header */}
-      <div className="relative">
-        <div
-          className="absolute top-0 left-0 right-0 h-[3px]"
-          style={{ backgroundColor: accentColor }}
-        />
-        <div className="px-4 py-3 border-b bg-[#f0f2f5] border-[#e5e5e5] flex justify-between items-center">
-          <h3 className="font-semibold text-[14px] text-deep-charcoal">{column.label}</h3>
-          <span
-            className="text-xs font-bold px-2.5 py-1 rounded-full shadow-[0_2px_4px_0_rgba(0,0,0,0.04)]"
-            style={{
-              backgroundColor: isFinal ? "#dcfce7" : `${accentColor}12`,
-              color: isFinal ? "#16a34a" : accentColor,
-            }}
-          >
-            {tasks.length}
-          </span>
-        </div>
+      <div className="px-3 sm:px-4 py-3 sm:py-4 border-b border-[#3c3c3c] bg-[#0d0d0d] flex justify-between items-center">
+        <h3 className="text-[11px] sm:text-xs font-bold text-white uppercase tracking-[1.5px] truncate">{column.label}</h3>
+        <span className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 border rounded-sm ml-2 shrink-0 ${column.countClass}`}>
+          {tasks.length}
+        </span>
       </div>
 
       <div ref={setNodeRef} className="p-3 flex-1 overflow-y-auto w-full min-h-[400px] max-h-[calc(100vh-360px)]">
@@ -518,8 +490,8 @@ function DroppableColumn({
             />
           ))}
           {tasks.length === 0 && (
-            <div className="h-full flex items-center justify-center border-2 border-dashed border-[#d1d5db] rounded-[12px] opacity-60 min-h-[100px]">
-              <span className="text-sm text-body-gray select-none">Drop tasks here</span>
+            <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
+              <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">Drop tasks here</span>
             </div>
           )}
         </SortableContext>
@@ -537,7 +509,6 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
-  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLoaderName, setFilterLoaderName] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -550,7 +521,6 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { getLoaders().then(setLoaders); }, []);
 
-  // Unique loader names across all tasks (for dropdown)
   const assignedLoaderNames = useMemo(() => {
     const names = new Set<string>();
     tasks.forEach(task =>
@@ -561,35 +531,29 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
     return Array.from(names).sort();
   }, [tasks]);
 
-  // Derived: filtered tasks
   const filteredTasks = useMemo(() => {
     let result = tasks;
-
     if (filterLoaderName) {
       result = result.filter(task =>
         task.task_assignments?.some(a => a.user?.full_name === filterLoaderName)
       );
     }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(task =>
         task.task_assignments?.some(a => a.user?.full_name?.toLowerCase().includes(q))
       );
     }
-
     if (filterDateFrom) {
       const from = new Date(filterDateFrom);
       from.setHours(0, 0, 0, 0);
       result = result.filter(task => new Date(task.created_at) >= from);
     }
-
     if (filterDateTo) {
       const to = new Date(filterDateTo);
       to.setHours(23, 59, 59, 999);
       result = result.filter(task => new Date(task.created_at) <= to);
     }
-
     return result;
   }, [tasks, filterLoaderName, searchQuery, filterDateFrom, filterDateTo]);
 
@@ -612,7 +576,6 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
 
     const activeId = active.id;
     const overId = over.id;
-
     const activeIndex = tasks.findIndex(t => t.id === activeId);
     if (activeIndex === -1) return;
 
@@ -659,7 +622,6 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
           current_status: targetStatus,
           revision_target_status: null,
         };
-
         const finalTargetIndex = newArray.findIndex(t => t.id === overId);
         if (finalTargetIndex !== -1 && finalTargetIndex !== targetInd) {
           return arrayMove(newArray, targetInd, finalTargetIndex);
@@ -696,12 +658,12 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
 
   if (!mounted) {
     return (
-      <div className="w-full overflow-x-auto overflow-y-hidden rounded-[16px] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-[#f3f3f3] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#cccccc] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#a3a3a3] pb-3" style={{ height: 'calc(100vh - 280px)', minHeight: '480px' }}>
-        <div className="flex gap-4 pb-2 pt-2 min-w-max h-full">
+      <div className="w-full overflow-x-auto overflow-y-hidden h-[calc(100vh-280px)] min-h-[480px] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-[#1a1a1a] [&::-webkit-scrollbar-thumb]:bg-[#3c3c3c] hover:[&::-webkit-scrollbar-thumb]:bg-[#7e7e7e] pb-3">
+        <div className="flex gap-4 sm:gap-5 pb-2 pt-2 px-2 sm:px-0 min-w-max h-full">
           {COLUMNS.map(column => (
-            <div key={column.id} className="w-[280px] shrink-0 flex flex-col rounded-[20px] overflow-hidden border bg-ice-mist border-[#e5e5e5] animate-pulse h-full">
-              <div className="p-4 border-b bg-[#f0f2f5] border-[#e5e5e5]">
-                <div className="h-4 bg-[#e5e5e5] rounded w-24" />
+            <div key={column.id} className={`w-[85vw] sm:w-[300px] shrink-0 flex flex-col overflow-hidden border bg-[#1a1a1a] border-[#3c3c3c] animate-pulse h-full ${column.topClass}`}>
+              <div className="p-4 border-b bg-[#0d0d0d] border-[#3c3c3c]">
+                <div className="h-3 sm:h-4 bg-[#3c3c3c] w-24 rounded-sm" />
               </div>
               <div className="p-4 flex-1 min-h-0" />
             </div>
@@ -713,16 +675,15 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
 
   return (
     <>
-      {/* ── Filter Bar ── */}
-      <div className="flex flex-wrap gap-3 mb-4 items-center bg-white p-4 rounded-[16px] border border-[#e5e5e5] shadow-sm">
-        {/* Loader dropdown */}
+      {/* Filter Bar */}
+      <div className="flex flex-wrap gap-3 mb-4 items-center bg-[#1a1a1a] border border-[#3c3c3c] p-4">
         <div className="relative min-w-[180px]">
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-body-gray pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7e7e7e] pointer-events-none" />
           <select
             aria-label="Filter by loader"
             value={filterLoaderName}
             onChange={e => setFilterLoaderName(e.target.value)}
-            className="w-full appearance-none pr-8 pl-3 py-2 text-sm border border-[#cccccc] rounded-[8px] outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all bg-white text-deep-charcoal"
+            className="w-full appearance-none pr-8 pl-3 py-2 text-sm border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6]"
           >
             <option value="">All Loaders</option>
             {assignedLoaderNames.map(name => (
@@ -731,23 +692,21 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
           </select>
         </div>
 
-        {/* Search by loader name */}
         <div className="relative flex-1 min-w-[160px] max-w-[260px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-body-gray pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7e7e7e] pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search loader name..."
-            className="w-full pl-9 pr-3 py-2 text-sm border border-[#cccccc] rounded-[8px] outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
           />
         </div>
 
-        {/* Date range */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <Calendar className="h-4 w-4 text-body-gray shrink-0" />
-            <span className="text-xs text-body-gray font-medium">From</span>
+            <Calendar className="h-4 w-4 text-[#7e7e7e] shrink-0" />
+            <span className="text-xs text-[#7e7e7e] font-bold uppercase tracking-[1px]">From</span>
           </div>
           <input
             type="date"
@@ -755,29 +714,28 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
             onChange={e => setFilterDateFrom(e.target.value)}
             title="Filter from date"
             aria-label="Filter from date"
-            className="text-sm border border-[#cccccc] rounded-[8px] px-2.5 py-2 outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all"
+            className="text-sm border border-[#3c3c3c] px-2.5 py-2 outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6] [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
           />
-          <span className="text-body-gray text-xs font-medium">to</span>
+          <span className="text-[#7e7e7e] text-xs font-bold uppercase tracking-[1px]">to</span>
           <input
             type="date"
             value={filterDateTo}
             onChange={e => setFilterDateTo(e.target.value)}
             title="Filter to date"
             aria-label="Filter to date"
-            className="text-sm border border-[#cccccc] rounded-[8px] px-2.5 py-2 outline-none focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20 transition-all"
+            className="text-sm border border-[#3c3c3c] px-2.5 py-2 outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6] [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
           />
         </div>
 
-        {/* Active filter status + clear */}
         {hasActiveFilter && (
           <div className="flex items-center gap-3 ml-auto">
-            <span className="text-xs text-body-gray">
-              Showing <span className="font-semibold text-deep-charcoal">{filteredTasks.length}</span> of {tasks.length} tasks
+            <span className="text-xs text-[#7e7e7e]">
+              Showing <span className="font-bold text-[#e6e6e6]">{filteredTasks.length}</span> of {tasks.length} tasks
             </span>
             <button
               type="button"
               onClick={() => { setFilterLoaderName(""); setSearchQuery(""); setFilterDateFrom(""); setFilterDateTo(""); }}
-              className="flex items-center gap-1.5 text-xs font-medium text-warning-red hover:bg-warning-red/10 px-3 py-1.5 rounded-[8px] transition-colors border border-warning-red/30"
+              className="flex items-center gap-1.5 text-xs font-bold text-[#e22718] hover:bg-[#e22718]/10 px-3 py-1.5 transition-colors border border-[#e22718]/30 uppercase tracking-[1px]"
             >
               <X className="h-3.5 w-3.5" />
               Clear
@@ -786,8 +744,8 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
         )}
       </div>
 
-      {/* ── Kanban Board ── */}
-      <div className="w-full overflow-x-auto overflow-y-hidden rounded-[16px] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-[#f3f3f3] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#cccccc] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#a3a3a3] pb-3" style={{ height: 'calc(100vh - 360px)', minHeight: '480px' }}>
+      {/* Kanban Board */}
+      <div className="w-full overflow-x-auto overflow-y-hidden h-[calc(100vh-360px)] min-h-[480px] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-[#1a1a1a] [&::-webkit-scrollbar-thumb]:bg-[#3c3c3c] hover:[&::-webkit-scrollbar-thumb]:bg-[#7e7e7e] pb-3">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -795,7 +753,7 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 pb-2 pt-2 min-w-max h-full">
+          <div className="flex gap-4 sm:gap-5 pb-2 pt-2 px-2 sm:px-0 min-w-max h-full">
             {COLUMNS.map(column => {
               const columnTasks = filteredTasks.filter(t => getDisplayColumn(t) === column.id);
               return (
@@ -812,7 +770,6 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
         </DndContext>
       </div>
 
-      {/* ── Modals ── */}
       {assigningTask && (
         <AssignModal
           task={assigningTask}

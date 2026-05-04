@@ -9,7 +9,7 @@ export const revalidate = 0;
 
 export default async function UsersPage() {
   const supabase = createAdminClient();
-  
+
   const { data: profiles } = await supabase
     .from("profiles")
     .select("*, task_assignments(id)")
@@ -18,70 +18,70 @@ export default async function UsersPage() {
   return (
     <>
       <Header title="User Management" />
-      <div className="max-w-[1920px] mx-auto w-full px-4 flex flex-col h-[calc(100vh-80px)]">
-        <section className="mb-4 mt-4 flex justify-between items-end">
+      <div className="max-w-[1920px] mx-auto w-full flex flex-col">
+        <section className="mb-4 mt-2 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h2 className="text-3xl font-light text-display-ink mb-1">Access Control</h2>
-            <p className="text-body-gray text-sm">Manage your team&apos;s access and assignments.</p>
+            <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-1">Access Control</h2>
+            <p className="text-[#bbbbbb] text-sm">Manage your team&apos;s access and assignments.</p>
           </div>
           <AddUserForm />
         </section>
 
-        <div className="bg-white rounded-[24px] shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] border border-[#f3f3f3] overflow-hidden flex-1 flex flex-col mb-6">
-          <div className="overflow-y-auto flex-1">
-            <table className="w-full text-left border-collapse table-fixed">
+        <div className="bg-[#1a1a1a] border border-[#3c3c3c] overflow-hidden flex flex-col mb-6">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
-                <tr className="bg-ice-mist border-b border-[#e5e5e5]">
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[14%]">Name</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[18%]">Email</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[10%]">Phone</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[13%]">Password</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[8%]">Role</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[11%]">Sub Role</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider text-center w-[6%]">Tasks</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider w-[7%]">Status</th>
-                  <th className="px-4 py-3 text-xs font-medium text-body-gray uppercase tracking-wider text-right w-[13%]">Actions</th>
+                <tr className="bg-[#0d0d0d] border-b border-[#3c3c3c]">
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Name</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Email</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] hidden lg:table-cell">Phone</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] hidden lg:table-cell">Password</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Role</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] hidden xl:table-cell">Sub Role</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] text-center">Tasks</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Status</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f3f3f3]">
+              <tbody className="divide-y divide-[#3c3c3c]">
                 {profiles?.map(profile => (
-                  <tr key={profile.id} className="hover:bg-ice-mist/50 transition-colors">
-                    <td className="px-4 py-4 font-semibold text-deep-charcoal text-sm truncate">
+                  <tr key={profile.id} className="hover:bg-[#262626] transition-colors">
+                    <td className="px-4 py-4 font-semibold text-[#e6e6e6] text-sm truncate max-w-[120px]">
                       {profile.full_name}
                     </td>
-                    <td className="px-4 py-4 text-ps-blue font-medium text-sm truncate">
+                    <td className="px-4 py-4 text-[#0066b1] font-medium text-sm truncate max-w-[160px]">
                       {profile.email}
                     </td>
-                    <td className="px-4 py-4 text-body-gray text-sm truncate">
+                    <td className="px-4 py-4 text-[#bbbbbb] text-sm truncate hidden lg:table-cell">
                       {profile.phone ? `+${profile.phone}` : '-'}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 hidden lg:table-cell">
                       <PasswordCell password={profile.plain_password} />
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider
-                        ${profile.role === 'admin' ? 'bg-ps-blue/10 text-ps-blue' : 
-                          profile.role === 'qc' ? 'bg-commerce-orange/10 text-commerce-orange' : 
-                          'bg-ps-cyan/10 text-[#008ba8]'}
+                      <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border
+                        ${profile.role === 'admin' ? 'border-[#0066b1] text-[#0066b1]' :
+                          profile.role === 'qc' ? 'border-[#e22718] text-[#e22718]' :
+                          'border-[#1c69d4] text-[#1c69d4]'}
                       `}>
                         {profile.role}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-body-gray text-xs truncate">
+                    <td className="px-4 py-4 text-[#7e7e7e] text-xs truncate hidden xl:table-cell">
                       {profile.sub_role ? profile.sub_role.replace(/_/g, ' ') : '-'}
                     </td>
-                    <td className="px-4 py-4 text-center text-deep-charcoal font-semibold text-sm">
+                    <td className="px-4 py-4 text-center text-[#e6e6e6] font-bold text-sm">
                       {profile.task_assignments?.length || 0}
                     </td>
                     <td className="px-4 py-4">
-                       {profile.is_active ? (
-                         <span className="text-xs font-semibold text-[#2e7d32] bg-[#2e7d32]/10 px-2 py-0.5 rounded-full">Active</span>
-                       ) : (
-                         <span className="text-xs font-semibold text-mute-gray bg-mute-gray/10 px-2 py-0.5 rounded-full">Inactive</span>
-                       )}
+                      {profile.is_active ? (
+                        <span className="text-[10px] font-bold text-[#0fa336] border border-[#0fa336] px-2 py-0.5 uppercase tracking-wider">Active</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-[#7e7e7e] border border-[#3c3c3c] px-2 py-0.5 uppercase tracking-wider">Inactive</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-0.5">
+                      <div className="flex items-center justify-end gap-1">
                         {profile.phone && profile.plain_password && (
                           <a
                             href={`https://wa.me/${profile.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Your login credentials:\n\nEmail: ${profile.email}\nPassword: ${profile.plain_password}`)}`}
@@ -98,10 +98,10 @@ export default async function UsersPage() {
                     </td>
                   </tr>
                 ))}
-                
+
                 {(!profiles || profiles.length === 0) && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-body-gray">
+                    <td colSpan={9} className="px-4 py-12 text-center text-[#7e7e7e]">
                       No users found.
                     </td>
                   </tr>

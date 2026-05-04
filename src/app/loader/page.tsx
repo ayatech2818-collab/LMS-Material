@@ -7,21 +7,17 @@ import { formatSubRole } from "@/lib/utils";
 export const revalidate = 0;
 
 export default async function LoaderDashboardPage() {
-  // Use the session client only for getting the current user's identity
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Use adminClient for all data queries to bypass RLS
   const adminClient = createAdminClient();
 
-  // Fetch Loader Profile
   const { data: profile } = await adminClient
     .from("profiles")
     .select("*")
     .eq("id", user?.id)
     .single();
 
-  // Find all tasks currently assigned to this loader
   const { data: assignments, error: assignError } = await adminClient
     .from("task_assignments")
     .select(`
@@ -40,7 +36,6 @@ export default async function LoaderDashboardPage() {
     console.error("Loader assignments query error:", assignError);
   }
 
-  // Build a deduplicated list of currently-assigned tasks
   const allTasksMap = new Map<string, LoaderTask>();
   (assignments || []).forEach((a) => {
     const t = a.tasks as unknown as LoaderTask | null;
@@ -51,15 +46,12 @@ export default async function LoaderDashboardPage() {
   });
   const allTasks = Array.from(allTasksMap.values());
 
-  // Count total submissions this loader ever made (for an accurate "total work done" stat)
   const { count: totalSubmissions } = await adminClient
     .from("task_history")
     .select("*", { count: "exact", head: true })
     .eq("changed_by", user?.id)
     .eq("action", "submitted");
 
-  // Stats
-  // "Total Assigned" = active pipeline tasks only (exclude final_approved which are done)
   const totalAssigned = allTasks.filter((t) => t.current_status !== "final_approved").length;
   const revisionsCount = allTasks.filter((t) => t.current_status === "needs_revision").length;
   const completedCount = totalSubmissions || 0;
@@ -67,44 +59,49 @@ export default async function LoaderDashboardPage() {
   return (
     <>
       <Header title="My Workspace" />
-      <div className="max-w-[1920px] mx-auto space-y-8">
+      <div className="max-w-[1920px] mx-auto space-y-6 md:space-y-8">
 
-        {/* Personalized Header Section */}
-        <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-ps-blue/5 p-8 rounded-[24px] border border-ps-blue/20">
-          <div>
-            <h2 className="text-3xl font-light text-display-ink mb-2">
-              Welcome back, <span className="font-semibold text-ps-blue">{profile?.full_name}</span>
-            </h2>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="px-3 py-1 bg-ps-blue/10 text-ps-blue rounded-full text-sm font-semibold tracking-wide">
-                Material Loader
-              </span>
-              <span className="text-body-gray font-medium">
-                {formatSubRole(profile?.sub_role)}
-              </span>
+        {/* Welcome Banner */}
+        <section className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 md:p-8">
+          {/* M-stripe accent */}
+          <div className="m-stripe mb-6" />
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+              <p className="text-[#7e7e7e] text-xs tracking-[2px] uppercase mb-2">Welcome back</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-white tracking-[1px] uppercase mb-3">
+                {profile?.full_name}
+              </h2>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="px-3 py-1 border border-[#0066b1] text-[#0066b1] text-xs font-bold tracking-[1px] uppercase">
+                  Material Loader
+                </span>
+                <span className="text-[#bbbbbb] text-sm">
+                  {formatSubRole(profile?.sub_role)}
+                </span>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Stats Row */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-[24px] border border-[#f3f3f3] shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
-            <h3 className="text-body-gray text-base mb-1">Total Assigned</h3>
-            <p className="text-[36px] font-light text-display-ink">{totalAssigned}</p>
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
+            <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Total Assigned</h3>
+            <p className="text-[40px] font-light text-white leading-none">{totalAssigned}</p>
           </div>
-          <div className="bg-white p-6 rounded-[24px] border border-[#f3f3f3] shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
-            <h3 className="text-body-gray text-base mb-1">Pending Revisions</h3>
-            <p className="text-[36px] font-light text-warning-red">{revisionsCount}</p>
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
+            <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Pending Revisions</h3>
+            <p className="text-[40px] font-light text-[#e22718] leading-none">{revisionsCount}</p>
           </div>
-          <div className="bg-white p-6 rounded-[24px] border border-[#f3f3f3] shadow-[0_5px_9px_0_rgba(0,0,0,0.05)]">
-            <h3 className="text-body-gray text-base mb-1">Total Submissions</h3>
-            <p className="text-[36px] font-light text-[#2e7d32]">{completedCount}</p>
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
+            <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Total Submissions</h3>
+            <p className="text-[40px] font-light text-[#0fa336] leading-none">{completedCount}</p>
           </div>
         </section>
 
-        {/* Drag-and-Drop Mini Kanban */}
+        {/* Task Board */}
         <section>
-          <h2 className="text-2xl font-light text-display-ink mb-4">Task Board</h2>
+          <h2 className="text-xs font-bold text-[#7e7e7e] mb-4 tracking-[3px] uppercase">Task Board</h2>
           <LoaderBoard
             tasks={allTasks}
             userId={user?.id ?? ""}

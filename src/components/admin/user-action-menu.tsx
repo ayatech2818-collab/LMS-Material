@@ -62,23 +62,23 @@ export function UserActionMenu({
         type="button"
         aria-label="User actions"
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-ice-mist rounded-full transition-colors text-mute-gray hover:text-deep-charcoal"
+        className="p-1.5 hover:bg-[#262626] rounded-full transition-colors text-[#7e7e7e] hover:text-white"
       >
-        <MoreVertical className="w-5 h-5" />
+        <MoreVertical className="w-4 h-4" />
       </button>
 
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-52 bg-white border border-[#e5e5e5] rounded-xl shadow-lg z-50 overflow-hidden">
+          <div className="absolute right-0 mt-2 w-52 bg-[#1a1a1a] border border-[#3c3c3c] shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-50 overflow-hidden">
             <div className="py-1">
               <button
                 type="button"
                 onClick={handleResetPassword}
                 disabled={loading}
-                className="w-full text-left px-4 py-2 text-sm text-deep-charcoal hover:bg-ice-mist flex items-center gap-2 disabled:opacity-50"
+                className="w-full text-left px-4 py-2.5 text-xs text-[#bbbbbb] hover:bg-[#262626] hover:text-white flex items-center gap-2 disabled:opacity-50 font-medium uppercase tracking-[1px]"
               >
-                <PenLine className="w-4 h-4 text-ps-blue" />
+                <PenLine className="w-3.5 h-3.5 text-[#0066b1]" />
                 Send Password Reset
               </button>
 
@@ -86,29 +86,29 @@ export function UserActionMenu({
                 type="button"
                 onClick={handleToggleStatus}
                 disabled={loading}
-                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-50 ${
+                className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 disabled:opacity-50 font-medium uppercase tracking-[1px] transition-colors ${
                   isActive
-                    ? "text-commerce-orange hover:bg-commerce-orange/10"
-                    : "text-[#2e7d32] hover:bg-[#2e7d32]/10"
+                    ? "text-[#e22718] hover:bg-[#e22718]/10"
+                    : "text-[#0fa336] hover:bg-[#0fa336]/10"
                 }`}
               >
                 {isActive ? (
-                  <Ban className="w-4 h-4" />
+                  <Ban className="w-3.5 h-3.5" />
                 ) : (
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-3.5 h-3.5" />
                 )}
                 {loading ? "Updating..." : isActive ? "Deactivate User" : "Activate User"}
               </button>
 
-              <div className="border-t border-[#f3f3f3] my-1" />
+              <div className="border-t border-[#3c3c3c] my-1" />
 
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={loading}
-                className="w-full text-left px-4 py-2 text-sm text-warning-red hover:bg-warning-red/10 flex items-center gap-2 disabled:opacity-50"
+                className="w-full text-left px-4 py-2.5 text-xs text-[#e22718] hover:bg-[#e22718]/10 flex items-center gap-2 disabled:opacity-50 font-medium uppercase tracking-[1px]"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
                 {loading ? "Deleting..." : "Delete User"}
               </button>
             </div>

@@ -19,7 +19,6 @@ export function LoginForm() {
       if (result.error) {
         setError(result.error);
       } else if (result.role) {
-        // Full page navigation ensures fresh cookies are sent
         window.location.href = `/${result.role}`;
       } else {
         setError("Account not fully set up. Contact your administrator.");
@@ -32,15 +31,15 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleLogin} className="space-y-6 w-full max-w-sm">
+    <form onSubmit={handleLogin} className="space-y-6 w-full">
       {error && (
-        <div className="p-3 bg-warning-red/10 border border-warning-red rounded-md text-warning-red text-sm font-medium">
+        <div className="p-3 bg-[#e22718]/10 border border-[#e22718] text-[#e22718] text-sm font-medium">
           {error}
         </div>
       )}
-      
+
       <div className="space-y-2">
-        <label htmlFor="email" className="text-body-gray text-sm font-medium block">
+        <label htmlFor="email" className="text-[#bbbbbb] text-xs font-bold tracking-[1.5px] uppercase block">
           Sign-In ID (Email Address)
         </label>
         <input
@@ -50,12 +49,12 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="user@example.com"
-          className="w-full bg-paper-white border border-mute-gray rounded-[3px] px-4 py-3 text-deep-charcoal text-base outline-none focus:ring-2 focus:ring-ps-blue placeholder:text-mute-gray transition-shadow"
+          className="w-full bg-[#0d0d0d] border border-[#3c3c3c] px-4 py-3 text-[#e6e6e6] text-sm outline-none focus:border-[#0066b1] focus:ring-1 focus:ring-[#0066b1] placeholder:text-[#7e7e7e] transition-all"
         />
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="password" className="text-body-gray text-sm font-medium block">
+        <label htmlFor="password" className="text-[#bbbbbb] text-xs font-bold tracking-[1.5px] uppercase block">
           Password
         </label>
         <input
@@ -65,15 +64,15 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
-          className="w-full bg-paper-white border border-mute-gray rounded-[3px] px-4 py-3 text-deep-charcoal text-base outline-none focus:ring-2 focus:ring-ps-blue placeholder:text-mute-gray transition-shadow"
+          className="w-full bg-[#0d0d0d] border border-[#3c3c3c] px-4 py-3 text-[#e6e6e6] text-sm outline-none focus:border-[#0066b1] focus:ring-1 focus:ring-[#0066b1] placeholder:text-[#7e7e7e] transition-all"
         />
       </div>
 
-      <div className="pt-4 flex justify-center">
+      <div className="pt-2">
         <button
           type="submit"
           disabled={loading}
-          className="btn-playstation w-max disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-ps-blue disabled:hover:shadow-none"
+          className="btn-m w-full disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white disabled:cursor-not-allowed"
         >
           {loading ? "Signing In..." : "Sign In"}
         </button>

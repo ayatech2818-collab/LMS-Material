@@ -9,15 +9,12 @@ export const revalidate = 0;
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
 
-  // 1. Fetch KPI metrics
   const [{ count: activeTasks }, { count: completedTasks }, { count: creators }] = await Promise.all([
     supabase.from("tasks").select("*", { count: "exact", head: true }),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("current_status", "final_approved"),
-    // Count all team members (loaders + qc) — everyone who is not an admin
     supabase.from("profiles").select("*", { count: "exact", head: true }).neq("role", "admin")
   ]);
 
-  // 2. Fetch Bar Chart Data
   const { data: rawTasks } = await supabase.from("tasks").select("current_status");
   const statusCounts: Record<string, number> = {};
   if (rawTasks) {
@@ -34,10 +31,9 @@ export default async function AdminDashboardPage() {
     { status: "Final", count: statusCounts["final_approved"] || 0 },
   ];
 
-  // 3. Fetch Productivity Table
   const { data: users } = await supabase.from("profiles").select("id, full_name, role, sub_role");
   const { data: assignments } = await supabase.from("task_assignments").select("user_id");
-  
+
   const productivityData = (users || []).map(u => {
     const handles = (assignments || []).filter(a => a.user_id === u.id).length;
     return {
@@ -48,7 +44,6 @@ export default async function AdminDashboardPage() {
     };
   }).sort((a,b) => b.tasksAssigned - a.tasksAssigned);
 
-  // 4. Fetch Recent Activity
   const { data: recentHistory } = await supabase
     .from("task_history")
     .select(`
@@ -61,65 +56,65 @@ export default async function AdminDashboardPage() {
   return (
     <>
       <Header title="Overview" />
-      
+
       <div className="max-w-[1920px] mx-auto">
-        {/* Gallery-pace padding inside modules */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-light text-display-ink mb-8 tracking-wide">
+        <section className="mb-12">
+          <h2 className="text-xs font-bold text-[#7e7e7e] mb-6 tracking-[3px] uppercase">
             Project Metrics
           </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
             <StatCard title="Total Tasks Assigned" value={activeTasks || 0} />
             <StatCard title="Total Tasks Completed" value={completedTasks || 0} />
             <StatCard title="Total Creators" value={creators || 0} />
           </div>
         </section>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <section>
-            <div className="bg-white rounded-[24px] p-8 shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] border border-[#f3f3f3] h-full">
-               <h2 className="text-2xl font-light text-display-ink mb-2">Pipeline Health</h2>
-               <p className="text-body-gray text-sm">Volume of tasks distributed across pipeline stages.</p>
-               <BarChart data={chartData} />
+            <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 md:p-8 h-full">
+              <h2 className="text-sm font-bold text-white tracking-[2px] uppercase mb-1">Pipeline Health</h2>
+              <p className="text-[#7e7e7e] text-xs mb-4">Volume of tasks distributed across pipeline stages.</p>
+              <BarChart data={chartData} />
             </div>
           </section>
 
           <section>
-            <div className="bg-white rounded-[24px] p-8 shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] border border-[#f3f3f3] h-full">
-               <h2 className="text-2xl font-light text-display-ink mb-2">Team Productivity</h2>
-               <p className="text-body-gray text-sm mb-8">Performance metrics highlighting task assignments by employee.</p>
-               <ProductivityTable data={productivityData} />
+            <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 md:p-8 h-full">
+              <h2 className="text-sm font-bold text-white tracking-[2px] uppercase mb-1">Team Productivity</h2>
+              <p className="text-[#7e7e7e] text-xs mb-6">Performance metrics highlighting task assignments by employee.</p>
+              <ProductivityTable data={productivityData} />
             </div>
           </section>
         </div>
 
-        <section className="mt-16">
-          <h2 className="text-3xl font-light text-display-ink mb-8 tracking-wide">
+        <section className="mt-12">
+          <h2 className="text-xs font-bold text-[#7e7e7e] mb-6 tracking-[3px] uppercase">
             Recent Activity
           </h2>
-          <div className="bg-white rounded-[24px] overflow-hidden shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] border border-[#f3f3f3]">
-            <div className="divide-y divide-[#f3f3f3]">
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] overflow-hidden">
+            <div className="divide-y divide-[#3c3c3c]">
               {recentHistory?.map((event) => (
-                <div key={event.id} className="p-6 hover:bg-ice-mist/50 transition-colors flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-2 h-2 rounded-full bg-ps-blue" />
-                    <div>
-                      <p className="text-sm font-medium text-display-ink">
-                        Task <span className="font-bold">#{event.task_id.slice(0, 5)}</span> moved to <span className="text-ps-blue font-semibold uppercase">{event.new_status.replace('_', ' ')}</span>
+                <div key={event.id} className="px-4 md:px-6 py-4 hover:bg-[#262626] transition-colors flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                    <div className="w-1.5 h-1.5 shrink-0 bg-[#0066b1]" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        Task <span className="font-bold">#{event.task_id.slice(0, 5)}</span> moved to{" "}
+                        <span className="text-[#0066b1] font-bold uppercase">{event.new_status.replace('_', ' ')}</span>
                       </p>
-                      <p className="text-xs text-body-gray mt-0.5">
+                      <p className="text-xs text-[#7e7e7e] mt-0.5 truncate">
                         {event.task?.board?.name} • {event.task?.chapter?.name}
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs text-mute-gray">
+                  <span className="text-xs text-[#7e7e7e] shrink-0">
                     {new Date(event.created_at).toLocaleString()}
                   </span>
                 </div>
               ))}
               {(!recentHistory || recentHistory.length === 0) && (
-                <div className="p-12 text-center text-body-gray italic">No recent activity found.</div>
+                <div className="p-12 text-center text-[#7e7e7e] italic">No recent activity found.</div>
               )}
             </div>
           </div>
@@ -131,9 +126,9 @@ export default async function AdminDashboardPage() {
 
 function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-[19px] p-8 shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] border border-[#f3f3f3] hover:shadow-[0_5px_9px_0_rgba(0,0,0,0.16)] transition-shadow duration-200">
-      <h3 className="text-body-gray text-base font-medium mb-4">{title}</h3>
-      <p className="text-[44px] font-light text-display-ink tracking-[0.1px] leading-none mb-2">
+    <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 md:p-8 hover:bg-[#262626] transition-colors">
+      <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-4">{title}</h3>
+      <p className="text-[44px] font-light text-white leading-none">
         {value}
       </p>
     </div>

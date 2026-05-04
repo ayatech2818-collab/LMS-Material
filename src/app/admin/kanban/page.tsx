@@ -19,8 +19,8 @@ export default async function AdminKanbanPage() {
 
       <div className="flex flex-col gap-5 min-w-0">
         <div>
-          <h2 className="text-3xl font-light text-display-ink mb-1">Task Pipeline</h2>
-          <p className="text-body-gray text-sm">Live tracking of all educational materials.</p>
+          <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-1">Task Pipeline</h2>
+          <p className="text-[#bbbbbb] text-sm">Live tracking of all educational materials.</p>
         </div>
 
         <KanbanWrapper tasks={tasks} userId={user?.id ?? ""} />

@@ -29,7 +29,6 @@ export function Header({ title }: { title: string }) {
     fetchUser();
   }, []);
 
-  // Simple mobile navigation links
   const mobileLinks = role === "Administrator" ? [
     { label: "Dashboard", href: "/admin" },
     { label: "Master Kanban", href: "/admin/kanban" },
@@ -44,44 +43,55 @@ export function Header({ title }: { title: string }) {
 
   return (
     <>
-      <header className="h-20 w-full md:w-[calc(100%-260px)] bg-console-black border-b border-[#1f1f1f] flex items-center justify-between px-6 md:px-8 absolute top-0 z-10 right-0">
+      <header className="h-16 w-full md:w-[calc(100%-260px)] bg-[#000] border-b border-[#3c3c3c] flex items-center justify-between px-5 md:px-8 absolute top-0 z-10 right-0">
         <div className="flex items-center gap-3">
-          <button 
-            className="md:hidden text-white"
+          <button
+            className="md:hidden text-white p-1"
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
           >
-            {menuOpen ? <X /> : <Menu />}
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <h1 className="text-xl md:text-3xl font-light text-white tracking-[0.1px]">
+          <h1 className="text-base md:text-xl font-bold text-white tracking-[2px] uppercase">
             {title}
           </h1>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex flex-col text-right">
-            <span className="text-sm font-medium text-white">{role}</span>
-            <span className="text-xs text-mute-gray">Verified Access</span>
+            <span className="text-xs font-bold text-white tracking-[1px] uppercase">{role}</span>
+            <span className="text-xs text-[#7e7e7e]">Verified Access</span>
           </div>
-          <div className="h-10 w-10 shrink-0 rounded-full bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-white font-medium">
+          <div className="h-9 w-9 shrink-0 bg-[#1a1a1a] border border-[#3c3c3c] flex items-center justify-center text-white font-bold text-sm tracking-wider">
             {initials}
           </div>
         </div>
       </header>
-      
-      {/* Mobile nav dropdown overlay */}
+
+      {/* Mobile full-screen overlay */}
       {menuOpen && (
-        <div className="md:hidden absolute top-20 left-0 w-full bg-console-black border-b border-[#1f1f1f] z-20 flex flex-col p-4 shadow-xl">
-          {mobileLinks.map(link => (
-            <Link 
-              key={link.href}
-              href={link.href} 
-              onClick={() => setMenuOpen(false)}
-              className={`p-4 rounded-lg font-medium text-lg ${pathname === link.href ? 'bg-ps-blue text-white' : 'text-body-gray hover:text-white'}`}
-            >
-              {link.label}
-            </Link>
-          ))}
-          <div className="mt-4 pt-4 border-t border-[#1f1f1f]">
+        <div className="md:hidden fixed inset-0 top-16 bg-[#000] z-20 flex flex-col">
+          {/* M-stripe at top */}
+          <div className="m-stripe" />
+
+          <nav className="flex-1 flex flex-col p-6 space-y-1">
+            {mobileLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`px-4 py-4 font-bold text-base tracking-[1.5px] uppercase transition-colors border-l-[3px] ${
+                  pathname === link.href
+                    ? 'text-white bg-[#1a1a1a] border-[#0066b1]'
+                    : 'text-[#7e7e7e] hover:text-white hover:bg-[#1a1a1a] border-transparent'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="p-6 border-t border-[#3c3c3c]">
             <button
               type="button"
               onClick={async () => {
@@ -89,7 +99,7 @@ export function Header({ title }: { title: string }) {
                 await supabase.auth.signOut();
                 window.location.href = "/login";
               }}
-              className="p-4 w-full text-left rounded-lg font-medium text-lg text-warning-red hover:bg-warning-red/10"
+              className="w-full px-4 py-4 text-left font-bold text-base tracking-[1.5px] uppercase text-[#e22718] hover:bg-[#e22718]/10 border-l-[3px] border-transparent transition-colors"
             >
               Sign Out
             </button>

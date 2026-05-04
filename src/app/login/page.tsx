@@ -2,17 +2,21 @@ import { LoginForm } from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-console-black flex flex-col justify-center items-center p-4">
-      {/* Background radial gradient to give it a "spotlight" feel without changing hues */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-shadow-black via-console-black to-console-black -z-10" />
+    <div className="min-h-screen bg-[#000] flex flex-col justify-center items-center p-4">
+      <div className="w-full max-w-md">
+        {/* M-stripe at top of card */}
+        <div className="m-stripe" />
 
-      <div className="w-full max-w-md bg-paper-white p-8 sm:p-12 rounded-[24px] shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] flex flex-col items-center">
-        {/* Placeholder for Logo */}
-        <div className="mb-8 font-light text-2xl tracking-tight text-display-ink text-center">
-          Material Operations
+        <div className="bg-[#1a1a1a] border border-[#3c3c3c] border-t-0 p-8 sm:p-12 flex flex-col items-center">
+          <div className="mb-8 text-center">
+            <p className="text-[#7e7e7e] text-xs tracking-[3px] uppercase mb-2">Ayatech AI</p>
+            <h1 className="text-2xl font-bold text-white tracking-[3px] uppercase">
+              Material Operations
+            </h1>
+          </div>
+
+          <LoginForm />
         </div>
-
-        <LoginForm />
       </div>
     </div>
   );

@@ -46,7 +46,6 @@ export type LoaderTask = {
   chapter?: { name: string } | null;
 };
 
-/** Returns which of the two QC approval rounds this task belongs to. */
 function getApprovalStage(task: LoaderTask): "script" | "video" {
   const s = task.current_status;
   if (s === "assigned" || s === "script_generated") return "script";
@@ -59,13 +58,13 @@ function getApprovalStage(task: LoaderTask): "script" | "video" {
 function StageBadge({ stage }: { stage: "script" | "video" }) {
   if (stage === "script") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-ps-blue/10 text-ps-blue border border-ps-blue/20 uppercase">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold tracking-[1px] bg-[#0066b1]/10 text-[#0066b1] border border-[#0066b1]/20 uppercase">
         1st Review · Script
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-[#7c3aed]/10 text-[#7c3aed] border border-[#7c3aed]/20 uppercase">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold tracking-[1px] bg-[#7c3aed]/10 text-[#a78bfa] border border-[#7c3aed]/20 uppercase">
       2nd Review · Final
     </span>
   );
@@ -78,14 +77,12 @@ type LoaderBoardProps = {
   subRole: string | null;
 };
 
-// The three interactive DnD columns
 const DND_COLUMNS = [
   { id: "todo",        label: "To Do" },
   { id: "in_progress", label: "In Progress" },
   { id: "submitted",   label: "Submitted for QC" },
 ];
 
-// DB statuses that map to each DnD column
 const TODO_STATUSES      = ["assigned", "script_approved", "video_generated", "needs_revision"];
 const SUBMITTED_STATUSES = ["script_generated", "video_edited"];
 const COMPLETED_STATUSES = ["final_approved"];
@@ -115,8 +112,6 @@ function getDoneIcon(subRole: string | null) {
     default:                      return <PenTool className="h-3.5 w-3.5" />;
   }
 }
-
-// ── Sortable (DnD) Task Card ──────────────────────────────────────────────────
 
 function SortableTaskCard({
   task,
@@ -156,28 +151,26 @@ function SortableTaskCard({
       ref={mergedRef}
       {...attributes}
       {...listeners}
-      className={`bg-white p-4 rounded-[14px] shadow-[0_5px_9px_0_rgba(0,0,0,0.06)] mb-3 cursor-grab hover:shadow-[0_5px_9px_0_rgba(0,0,0,0.16)] transition-all ${
+      className={`bg-[#262626] p-4 mb-2 cursor-grab transition-all border ${
         isRevision
-          ? "border-2 border-warning-red/50 ring-1 ring-warning-red/20"
-          : "border border-[#f3f3f3]"
+          ? "border-[#e22718]/50 ring-1 ring-[#e22718]/20"
+          : "border-[#3c3c3c] hover:border-[#7e7e7e]"
       }`}
     >
-      {/* Revision flag */}
       {isRevision && (
-        <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 bg-warning-red/10 rounded-[8px] border border-warning-red/20">
-          <AlertTriangle className="h-3.5 w-3.5 text-warning-red shrink-0" />
-          <span className="text-[11px] font-bold text-warning-red uppercase tracking-wide">Needs Revision</span>
+        <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 bg-[#e22718]/10 border border-[#e22718]/20">
+          <AlertTriangle className="h-3.5 w-3.5 text-[#e22718] shrink-0" />
+          <span className="text-[10px] font-bold text-[#e22718] uppercase tracking-[1.5px]">Needs Revision</span>
         </div>
       )}
 
-      {/* Chapter badge + history link */}
       <div className="flex justify-between items-start mb-2">
-        <span className="text-xs font-semibold text-ps-blue bg-ps-blue/10 px-2 py-1 rounded-md">
+        <span className="text-[10px] font-bold text-[#0066b1] bg-[#0066b1]/10 border border-[#0066b1]/20 px-2 py-0.5 uppercase tracking-[1px]">
           {task.chapter?.name || "Chapter"}
         </span>
         <Link
           href={`/loader/task/${task.id}`}
-          className="text-[10px] text-body-gray hover:text-ps-blue transition-colors"
+          className="text-[10px] text-[#7e7e7e] hover:text-[#0066b1] transition-colors uppercase tracking-[1px]"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -185,21 +178,18 @@ function SortableTaskCard({
         </Link>
       </div>
 
-      {/* Approval stage badge */}
       <div className="mb-2">
         <StageBadge stage={stage} />
       </div>
 
-      {/* Title */}
-      <p className="text-sm text-deep-charcoal font-medium line-clamp-2 mb-3">
+      <p className="text-sm text-[#e6e6e6] font-medium line-clamp-2 mb-3">
         {task.board?.name ? `${task.board.name} • ${task.subject?.name}` : task.title || "Untitled Task"}
       </p>
 
-      {/* Work link */}
       <div className="mb-3">
         <div className="flex items-center gap-1.5 mb-1.5">
-          <LinkIcon className="h-3 w-3 text-body-gray" />
-          <span className="text-[11px] font-semibold text-body-gray uppercase tracking-wider">Work Link</span>
+          <LinkIcon className="h-3 w-3 text-[#7e7e7e]" />
+          <span className="text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Work Link</span>
         </div>
         <div className="flex gap-1.5">
           <input
@@ -210,10 +200,10 @@ function SortableTaskCard({
             onClick={(e) => e.stopPropagation()}
             readOnly={isSubmitted}
             placeholder="Paste Google Doc, Drive, or YouTube link..."
-            className={`flex-1 text-xs border rounded-[6px] px-2.5 py-2 outline-none transition-all ${
+            className={`flex-1 text-xs border px-2.5 py-2 outline-none transition-all text-[#e6e6e6] placeholder:text-[#7e7e7e] ${
               isSubmitted
-                ? "bg-[#f9f9f9] border-[#e5e5e5] text-body-gray cursor-default"
-                : "border-[#cccccc] focus:border-ps-blue focus:ring-1 focus:ring-ps-blue/20"
+                ? "bg-[#1a1a1a] border-[#3c3c3c] text-[#7e7e7e] cursor-default"
+                : "bg-[#0d0d0d] border-[#3c3c3c] focus:border-[#0066b1] focus:ring-1 focus:ring-[#0066b1]/20"
             }`}
           />
           {linkValue && (
@@ -223,7 +213,7 @@ function SortableTaskCard({
               rel="noopener noreferrer"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
-              className="shrink-0 w-8 h-8 flex items-center justify-center rounded-[6px] border border-ps-blue/30 text-ps-blue hover:bg-ps-blue/10 transition-colors"
+              className="shrink-0 w-8 h-8 flex items-center justify-center border border-[#0066b1]/30 text-[#0066b1] hover:bg-[#0066b1]/10 transition-colors"
               title="Open link in new tab"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -232,10 +222,9 @@ function SortableTaskCard({
         </div>
       </div>
 
-      {/* Action button or awaiting status */}
       {isSubmitted ? (
-        <div className="flex items-center gap-2 text-xs text-body-gray font-medium bg-[#f9f9f9] px-3 py-2 rounded-[8px]">
-          <Clock className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-2 text-[10px] text-[#7e7e7e] font-bold uppercase tracking-[1.5px] bg-[#1a1a1a] border border-[#3c3c3c] px-3 py-2">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
           Awaiting QC Review
         </div>
       ) : (
@@ -243,62 +232,54 @@ function SortableTaskCard({
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onDone(task); }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-sm font-semibold text-white bg-ps-blue hover:bg-ps-cyan transition-all shadow-sm hover:scale-[1.02] active:scale-95"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-[1.5px] text-white bg-transparent border border-white hover:bg-white hover:text-black transition-all"
         >
           {getDoneIcon(subRole)}
           {getDoneLabel(subRole)}
         </button>
       )}
 
-      <div className="mt-2 text-[11px] text-body-gray">
+      <div className="mt-2 text-[10px] text-[#7e7e7e]">
         <span suppressHydrationWarning>{new Date(task.created_at).toLocaleDateString("en-IN")}</span>
       </div>
     </div>
   );
 }
 
-// ── Completed Task Card (read-only, no DnD) ───────────────────────────────────
-
 function CompletedTaskCard({ task }: { task: LoaderTask }) {
   return (
-    <div className="bg-white p-4 rounded-[14px] shadow-[0_5px_9px_0_rgba(0,0,0,0.04)] mb-3 border border-green-100">
-      {/* Chapter badge + history link */}
+    <div className="bg-[#262626] p-4 mb-2 border border-[#0fa336]/20">
       <div className="flex justify-between items-start mb-2">
-        <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-200">
+        <span className="text-[10px] font-bold text-[#0fa336] bg-[#0fa336]/10 border border-[#0fa336]/20 px-2 py-0.5 uppercase tracking-[1px]">
           {task.chapter?.name || "Chapter"}
         </span>
         <Link
           href={`/loader/task/${task.id}`}
-          className="text-[10px] text-body-gray hover:text-ps-blue transition-colors"
+          className="text-[10px] text-[#7e7e7e] hover:text-[#0066b1] transition-colors uppercase tracking-[1px]"
         >
           History →
         </Link>
       </div>
 
-      {/* Stage badge — completed tasks are always the final stage */}
       <div className="mb-2">
         <StageBadge stage="video" />
       </div>
 
-      {/* Title */}
-      <p className="text-sm text-deep-charcoal font-medium line-clamp-2 mb-3">
+      <p className="text-sm text-[#e6e6e6] font-medium line-clamp-2 mb-3">
         {task.board?.name ? `${task.board.name} • ${task.subject?.name}` : task.title || "Untitled Task"}
       </p>
 
-      {/* Final approved pill */}
-      <div className="flex items-center gap-2 text-xs text-green-700 font-semibold bg-green-50 px-3 py-2 rounded-[8px] border border-green-200">
+      <div className="flex items-center gap-2 text-[10px] text-[#0fa336] font-bold uppercase tracking-[1.5px] bg-[#0fa336]/10 border border-[#0fa336]/20 px-3 py-2">
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
         Final Approved
       </div>
 
-      <div className="mt-2 text-[11px] text-body-gray">
+      <div className="mt-2 text-[10px] text-[#7e7e7e]">
         <span suppressHydrationWarning>{new Date(task.created_at).toLocaleDateString("en-IN")}</span>
       </div>
     </div>
   );
 }
-
-// ── Droppable Column (DnD) ────────────────────────────────────────────────────
 
 function DroppableColumn({
   column,
@@ -317,29 +298,28 @@ function DroppableColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
-  const accentBarClass =
-    column.id === "todo"        ? "bg-indigo-500" :
-    column.id === "in_progress" ? "bg-orange-500" :
-    "bg-amber-500";
+  const countColor =
+    column.id === "todo"        ? "text-[#0066b1] border-[#0066b1]/30 bg-[#0066b1]/10" :
+    column.id === "in_progress" ? "text-[#f4b400] border-[#f4b400]/30 bg-[#f4b400]/10" :
+    "text-[#a78bfa] border-[#7c3aed]/30 bg-[#7c3aed]/10";
 
-  const badgeClass =
-    column.id === "todo"        ? "bg-indigo-50 text-indigo-600" :
-    column.id === "in_progress" ? "bg-orange-50 text-orange-600" :
-    "bg-amber-50 text-amber-700";
+  const topBorderClass =
+    column.id === "todo"        ? "[border-top:3px_solid_#0066b1]" :
+    column.id === "in_progress" ? "[border-top:3px_solid_#f4b400]" :
+    "[border-top:3px_solid_#7c3aed]";
 
   return (
     <div
-      className={`flex flex-col rounded-[20px] overflow-hidden border transition-all duration-200 ${
+      className={`flex flex-col overflow-hidden border transition-all duration-200 ${
         isOver
-          ? "border-ps-blue/50 shadow-[0_0_0_2px_rgba(59,130,246,0.2)]"
-          : "bg-ice-mist border-[#e5e5e5]"
+          ? "border-[#0066b1]/60 bg-[#0066b1]/5"
+          : "bg-[#1a1a1a] border-[#3c3c3c]"
       }`}
     >
-      <div className="relative">
-        <div className={`absolute top-0 left-0 right-0 h-[3px] ${accentBarClass}`} />
-        <div className="px-4 py-3 border-b bg-[#f0f2f5] border-[#e5e5e5] flex justify-between items-center">
-          <h3 className="font-semibold text-[14px] text-deep-charcoal">{column.label}</h3>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full shadow-[0_2px_4px_0_rgba(0,0,0,0.04)] ${badgeClass}`}>
+      <div className={topBorderClass}>
+        <div className="px-4 py-3 border-b border-[#3c3c3c] bg-[#0d0d0d] flex justify-between items-center">
+          <h3 className="text-[10px] font-bold text-white uppercase tracking-[2px]">{column.label}</h3>
+          <span className={`text-[10px] font-bold px-2.5 py-0.5 border ${countColor}`}>
             {tasks.length}
           </span>
         </div>
@@ -359,8 +339,8 @@ function DroppableColumn({
             />
           ))}
           {tasks.length === 0 && (
-            <div className="h-full flex items-center justify-center border-2 border-dashed border-[#d1d5db] rounded-[12px] opacity-60 min-h-[100px]">
-              <span className="text-sm text-body-gray select-none">
+            <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
+              <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
                 {column.id === "todo"
                   ? "All clear!"
                   : column.id === "in_progress"
@@ -375,19 +355,14 @@ function DroppableColumn({
   );
 }
 
-// ── Completed Column (read-only, no DnD) ─────────────────────────────────────
-
 function CompletedColumn({ tasks }: { tasks: LoaderTask[] }) {
   return (
-    <div className="flex flex-col rounded-[20px] overflow-hidden border bg-ice-mist border-[#e5e5e5]">
-      <div className="relative">
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-green-600" />
-        <div className="px-4 py-3 border-b bg-[#f0f2f5] border-[#e5e5e5] flex justify-between items-center">
-          <h3 className="font-semibold text-[14px] text-deep-charcoal">Final Approved</h3>
-          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 shadow-[0_2px_4px_0_rgba(0,0,0,0.04)]">
-            {tasks.length}
-          </span>
-        </div>
+    <div className="flex flex-col overflow-hidden border bg-[#1a1a1a] border-[#3c3c3c] [border-top:3px_solid_#0fa336]">
+      <div className="px-4 py-3 border-b border-[#3c3c3c] bg-[#0d0d0d] flex justify-between items-center">
+        <h3 className="text-[10px] font-bold text-white uppercase tracking-[2px]">Final Approved</h3>
+        <span className="text-[10px] font-bold px-2.5 py-0.5 border text-[#0fa336] border-[#0fa336]/30 bg-[#0fa336]/10">
+          {tasks.length}
+        </span>
       </div>
 
       <div className="p-3 flex-1 overflow-y-auto min-h-[300px] max-h-[calc(100vh-380px)]">
@@ -395,16 +370,14 @@ function CompletedColumn({ tasks }: { tasks: LoaderTask[] }) {
           <CompletedTaskCard key={task.id} task={task} />
         ))}
         {tasks.length === 0 && (
-          <div className="h-full flex items-center justify-center border-2 border-dashed border-[#d1d5db] rounded-[12px] opacity-60 min-h-[100px]">
-            <span className="text-sm text-body-gray select-none">No completed tasks yet</span>
+          <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
+            <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">No completed tasks yet</span>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-// ── Loader Board ──────────────────────────────────────────────────────────────
 
 export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: LoaderBoardProps) {
   const [tasks, setTasks] = useState(initialTasks);
@@ -415,7 +388,6 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: 
   const dragOriginalColumn = useRef<string | null>(null);
   const router = useRouter();
 
-  // Sync local state whenever the server re-renders with fresh data (e.g. after router.refresh())
   useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
@@ -515,7 +487,6 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: 
         });
       }
 
-      // Dragging to "submitted" opens the modal instead of a direct DB write
       if (targetColumn === "submitted" && originalColumn !== "submitted") {
         const task = tasks.find((t) => t.id === activeId);
         if (task) setSubmittingTask(task);
@@ -553,7 +524,6 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: 
     router.refresh();
   }
 
-  // Split tasks: DnD-eligible vs completed (completed are rendered outside DnD)
   const dndTasks       = tasks.filter((t) => !COMPLETED_STATUSES.includes(t.current_status));
   const completedTasks = tasks.filter((t) => COMPLETED_STATUSES.includes(t.current_status));
 
@@ -561,9 +531,9 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex flex-col rounded-[20px] overflow-hidden border bg-ice-mist border-[#e5e5e5] animate-pulse">
-            <div className="p-4 border-b bg-[#f0f2f5] border-[#e5e5e5]">
-              <div className="h-4 bg-[#e5e5e5] rounded w-24" />
+          <div key={i} className="flex flex-col overflow-hidden border bg-[#1a1a1a] border-[#3c3c3c] animate-pulse">
+            <div className="p-4 border-b bg-[#0d0d0d] border-[#3c3c3c]">
+              <div className="h-3 bg-[#3c3c3c] w-24" />
             </div>
             <div className="p-4 flex-1 min-h-[300px]" />
           </div>
@@ -597,8 +567,6 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: 
             );
           })}
         </DndContext>
-
-        {/* Completed column — read-only, no DnD interaction */}
         <CompletedColumn tasks={completedTasks} />
       </div>
 

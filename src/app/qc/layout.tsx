@@ -31,9 +31,9 @@ export default async function QCLayout({
     <div className="flex h-screen overflow-hidden bg-console-black">
       <RealtimeListener />
       <Sidebar role="qc" />
-      <div className="flex-1 relative bg-paper-white bg-gradient-to-b from-paper-white to-ice-mist min-h-screen">
-        <main className="pt-20 h-full overflow-y-auto">
-          <div className="p-8 pb-32">
+      <div className="flex-1 relative bg-[#000] min-h-screen overflow-hidden">
+        <main className="pt-16 h-full overflow-y-auto overflow-x-hidden">
+          <div className="p-5 md:p-8 pb-32 min-w-0">
             {children}
           </div>
         </main>

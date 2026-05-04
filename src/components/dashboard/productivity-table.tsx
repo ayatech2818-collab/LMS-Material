@@ -14,25 +14,25 @@ export function ProductivityTable({ data }: ProductivityTableProps) {
     <div className="w-full overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="border-b border-[#f3f3f3]">
-            <th className="pb-3 text-sm font-semibold text-deep-charcoal">Employee Name</th>
-            <th className="pb-3 text-sm font-semibold text-deep-charcoal">Role</th>
-            <th className="pb-3 text-sm font-semibold text-deep-charcoal">Sub-Role</th>
-            <th className="pb-3 text-sm font-semibold text-deep-charcoal text-right">Tasks Handled</th>
+          <tr className="border-b border-[#3c3c3c]">
+            <th className="pb-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Employee Name</th>
+            <th className="pb-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Role</th>
+            <th className="pb-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] hidden sm:table-cell">Sub-Role</th>
+            <th className="pb-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] text-right">Tasks</th>
           </tr>
         </thead>
         <tbody className="text-sm">
           {data.map((row, i) => (
-            <tr key={i} className="border-b border-[#f3f3f3] hover:bg-ice-mist transition-colors">
-              <td className="py-4 font-medium text-display-ink">{row.fullName}</td>
-              <td className="py-4 text-body-gray capitalize">{row.role}</td>
-              <td className="py-4 text-body-gray capitalize">{row.subRole ? row.subRole.replace(/_/g, ' ') : '-'}</td>
-              <td className="py-4 text-ps-blue font-semibold text-right">{row.tasksAssigned}</td>
+            <tr key={i} className="border-b border-[#3c3c3c] hover:bg-[#262626] transition-colors">
+              <td className="py-3 font-medium text-[#e6e6e6]">{row.fullName}</td>
+              <td className="py-3 text-[#bbbbbb] capitalize text-xs">{row.role}</td>
+              <td className="py-3 text-[#bbbbbb] capitalize text-xs hidden sm:table-cell">{row.subRole ? row.subRole.replace(/_/g, ' ') : '-'}</td>
+              <td className="py-3 text-[#0066b1] font-bold text-right">{row.tasksAssigned}</td>
             </tr>
           ))}
           {data.length === 0 && (
             <tr>
-              <td colSpan={4} className="py-8 text-center text-body-gray">
+              <td colSpan={4} className="py-8 text-center text-[#7e7e7e] text-sm">
                 No user productivity data available yet.
               </td>
             </tr>

@@ -35,7 +35,6 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
   const [selectedChapter, setSelectedChapter] = useState("");
   const [selectedLoader, setSelectedLoader] = useState("");
 
-  // Inline-add states for each hierarchy level
   const [addingBoard, setAddingBoard] = useState(false);
   const [addingClass, setAddingClass] = useState(false);
   const [addingSubject, setAddingSubject] = useState(false);
@@ -85,7 +84,7 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
       return;
     }
     setSubmitting(true);
-    
+
     const res = await createTask({
       board_id: selectedBoard,
       class_id: selectedClass,
@@ -102,13 +101,12 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
     setSubmitting(false);
   };
 
-  // Sub-role color mapping
-  const subRoleColor = (subRole: string | null) => {
+  const getSubRoleBadgeClass = (subRole: string | null) => {
     switch (subRole) {
-      case "script_writer": return "bg-ps-cyan/15 text-[#008ba8]";
-      case "video_audio_generator": return "bg-commerce-orange/15 text-commerce-orange";
-      case "video_editor": return "bg-[#7c4dff]/15 text-[#7c4dff]";
-      default: return "bg-[#e5e5e5] text-body-gray";
+      case "script_writer":         return "border border-[#0066b1] text-[#0066b1]";
+      case "video_audio_generator": return "border border-[#f4b400] text-[#f4b400]";
+      case "video_editor":          return "border border-[#a78bfa] text-[#a78bfa]";
+      default:                      return "border border-[#3c3c3c] text-[#7e7e7e]";
     }
   };
 
@@ -127,7 +125,7 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
     onParentChange?: () => void
   ) => (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-deep-charcoal flex items-center gap-1.5">
+      <label className="text-[10px] font-bold text-[#bbbbbb] uppercase tracking-[1.5px] block">
         {label}
       </label>
 
@@ -140,7 +138,7 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
             onParentChange?.();
           }}
           disabled={disabled}
-          className="flex-1 border border-[#cccccc] rounded-[8px] p-2.5 outline-none focus:border-ps-blue focus:ring-2 focus:ring-ps-blue/20 disabled:bg-[#f9f9f9] disabled:cursor-not-allowed transition-all text-sm"
+          className="flex-1 bg-[#0d0d0d] border border-[#3c3c3c] p-2.5 outline-none focus:border-[#0066b1] disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm text-[#e6e6e6]"
         >
           <option value="">{placeholder}</option>
           {options.map(o => (
@@ -152,23 +150,22 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={() => { setAdding(true); setNewName(""); }}
           disabled={disabled}
-          className="shrink-0 w-9 h-9 flex items-center justify-center rounded-[8px] border border-dashed border-ps-blue/40 text-ps-blue hover:bg-ps-blue/10 hover:border-ps-blue transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full border border-[#0066b1]/40 text-[#0066b1] hover:bg-[#0066b1]/10 hover:border-[#0066b1] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           title={`Add new ${label.toLowerCase()}`}
         >
           <Plus className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Inline add input */}
       {isAdding && (
-        <div className="flex items-center gap-2 p-2.5 border border-ps-blue rounded-[8px] bg-ps-blue/5 animate-in slide-in-from-top-1">
+        <div className="flex items-center gap-2 p-2.5 border border-[#0066b1] bg-[#0066b1]/5">
           <input
             autoFocus
             type="text"
             value={newName}
             onChange={e => setNewName(e.target.value)}
             placeholder={`New ${label.toLowerCase()} name...`}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-body-gray/60"
+            className="flex-1 bg-transparent text-sm outline-none text-[#e6e6e6] placeholder:text-[#7e7e7e]"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -181,7 +178,7 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
             type="button"
             disabled={addingLoading}
             onClick={() => handleInlineAdd(type, parentId, setAdding, setSelected)}
-            className="p-1 text-[#2e7d32] hover:bg-[#2e7d32]/10 rounded transition-colors"
+            className="p-1 text-[#0fa336] hover:bg-[#0fa336]/10 transition-colors"
             title="Confirm"
           >
             {addingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -189,7 +186,7 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={() => setAdding(false)}
-            className="p-1 text-warning-red hover:bg-warning-red/10 rounded transition-colors"
+            className="p-1 text-[#e22718] hover:bg-[#e22718]/10 transition-colors"
             title="Cancel"
           >
             <X className="h-4 w-4" />
@@ -200,127 +197,129 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[24px] w-full max-w-lg shadow-[0_20px_60px_0_rgba(0,0,0,0.2)] p-8 relative max-h-[90vh] overflow-y-auto">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-6 right-6 p-1.5 rounded-full text-body-gray hover:bg-[#f3f3f3] hover:text-deep-charcoal transition-colors"
-          title="Close modal"
-        >
-          <X className="h-5 w-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-[#1a1a1a] border border-[#3c3c3c] w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
+        {/* M-stripe */}
+        <div className="m-stripe" />
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-light text-display-ink">Assign Task</h2>
-          <p className="text-body-gray text-sm mt-1">Select curriculum path and assign to a loader.</p>
-        </div>
+        <div className="p-6 md:p-8">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-8 right-6 p-1.5 rounded-full text-[#7e7e7e] hover:bg-[#3c3c3c] hover:text-white transition-colors"
+            title="Close modal"
+          >
+            <X className="h-5 w-5" />
+          </button>
 
-        {loading ? (
-          <div className="py-12 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-ps-blue mx-auto mb-3" />
-            <p className="text-body-gray text-sm">Loading curriculum data...</p>
+          <div className="mb-6 pr-8">
+            <h2 className="text-xs font-bold text-[#7e7e7e] uppercase tracking-[3px] mb-1">Assign Task</h2>
+            <p className="text-[#bbbbbb] text-sm">Select curriculum path and assign to a loader.</p>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-warning-red/10 border border-warning-red/30 text-warning-red text-sm rounded-[8px] font-medium">
-                {error}
+
+          {loading ? (
+            <div className="py-12 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#0066b1] mx-auto mb-3" />
+              <p className="text-[#7e7e7e] text-sm">Loading curriculum data...</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="p-3 bg-[#e22718]/10 border border-[#e22718]/30 text-[#e22718] text-sm font-medium">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-4 pb-4 border-b border-[#3c3c3c]">
+                <p className="text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[2px]">Curriculum Path</p>
+
+                {renderDropdownRow(
+                  "Board", selectedBoard,
+                  (val) => { setSelectedBoard(val); setSelectedClass(""); setSelectedSubject(""); setSelectedChapter(""); },
+                  boards, "Select Board...", false,
+                  addingBoard, setAddingBoard, "board", null,
+                  (id) => { setSelectedBoard(id); setSelectedClass(""); setSelectedSubject(""); setSelectedChapter(""); }
+                )}
+
+                {renderDropdownRow(
+                  "Class", selectedClass,
+                  (val) => { setSelectedClass(val); setSelectedSubject(""); setSelectedChapter(""); },
+                  classes, "Select Class...", !selectedBoard,
+                  addingClass, setAddingClass, "class", selectedBoard,
+                  (id) => { setSelectedClass(id); setSelectedSubject(""); setSelectedChapter(""); }
+                )}
+
+                {renderDropdownRow(
+                  "Subject", selectedSubject,
+                  (val) => { setSelectedSubject(val); setSelectedChapter(""); },
+                  subjects, "Select Subject...", !selectedClass,
+                  addingSubject, setAddingSubject, "subject", selectedClass,
+                  (id) => { setSelectedSubject(id); setSelectedChapter(""); }
+                )}
+
+                {renderDropdownRow(
+                  "Chapter", selectedChapter,
+                  (val) => { setSelectedChapter(val); },
+                  chapters, "Select Chapter...", !selectedSubject,
+                  addingChapter, setAddingChapter, "chapter", selectedSubject,
+                  (id) => { setSelectedChapter(id); }
+                )}
               </div>
-            )}
 
-            {/* Curriculum Structure — Tree Cascading Dropdowns */}
-            <div className="space-y-4 pb-4 border-b border-[#f3f3f3]">
-              <p className="text-xs font-semibold text-body-gray uppercase tracking-wider">Curriculum Path</p>
-              
-              {renderDropdownRow(
-                "Board", selectedBoard,
-                (val) => { setSelectedBoard(val); setSelectedClass(""); setSelectedSubject(""); setSelectedChapter(""); },
-                boards, "Select Board...", false,
-                addingBoard, setAddingBoard, "board", null,
-                (id) => { setSelectedBoard(id); setSelectedClass(""); setSelectedSubject(""); setSelectedChapter(""); }
-              )}
+              <div className="space-y-3 pt-2">
+                <p className="text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[2px]">Assignment</p>
+                <label className="text-[10px] font-bold text-[#bbbbbb] uppercase tracking-[1.5px] block">Assign Material Loader</label>
+                <select
+                  aria-label="Assign Material Loader"
+                  value={selectedLoader}
+                  onChange={e => setSelectedLoader(e.target.value)}
+                  className="w-full bg-[#0d0d0d] border border-[#3c3c3c] p-2.5 outline-none focus:border-[#0066b1] transition-all text-sm text-[#e6e6e6]"
+                >
+                  <option value="">Select a Loader...</option>
+                  {loaders.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.full_name} — {formatSubRole(l.sub_role)}
+                    </option>
+                  ))}
+                </select>
 
-              {renderDropdownRow(
-                "Class", selectedClass,
-                (val) => { setSelectedClass(val); setSelectedSubject(""); setSelectedChapter(""); },
-                classes, "Select Class...", !selectedBoard,
-                addingClass, setAddingClass, "class", selectedBoard,
-                (id) => { setSelectedClass(id); setSelectedSubject(""); setSelectedChapter(""); }
-              )}
+                {selectedLoader && (() => {
+                  const loader = loaders.find(l => l.id === selectedLoader);
+                  if (!loader) return null;
+                  return (
+                    <div className="flex items-center gap-3 p-3 bg-[#262626] border border-[#3c3c3c]">
+                      <div className="w-8 h-8 bg-[#0066b1] flex items-center justify-center text-white text-sm font-bold shrink-0">
+                        {loader.full_name?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#e6e6e6] truncate">{loader.full_name}</p>
+                        <p className="text-xs text-[#7e7e7e] truncate">{loader.email}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 shrink-0 ${getSubRoleBadgeClass(loader.sub_role)} uppercase tracking-[1px]`}>
+                        {formatSubRole(loader.sub_role)}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
 
-              {renderDropdownRow(
-                "Subject", selectedSubject,
-                (val) => { setSelectedSubject(val); setSelectedChapter(""); },
-                subjects, "Select Subject...", !selectedClass,
-                addingSubject, setAddingSubject, "subject", selectedClass,
-                (id) => { setSelectedSubject(id); setSelectedChapter(""); }
-              )}
-
-              {renderDropdownRow(
-                "Chapter", selectedChapter,
-                (val) => { setSelectedChapter(val); },
-                chapters, "Select Chapter...", !selectedSubject,
-                addingChapter, setAddingChapter, "chapter", selectedSubject,
-                (id) => { setSelectedChapter(id); }
-              )}
-            </div>
-
-            {/* Loader Assignment */}
-            <div className="space-y-2 pt-2">
-              <p className="text-xs font-semibold text-body-gray uppercase tracking-wider">Assignment</p>
-              <label className="text-sm font-semibold text-deep-charcoal">Assign Material Loader</label>
-              <select 
-                aria-label="Assign Material Loader"
-                value={selectedLoader} 
-                onChange={e => setSelectedLoader(e.target.value)}
-                className="w-full border border-[#cccccc] rounded-[8px] p-2.5 outline-none focus:border-ps-blue focus:ring-2 focus:ring-ps-blue/20 transition-all text-sm"
+              <button
+                type="submit"
+                disabled={submitting || !selectedChapter || !selectedLoader}
+                className="w-full mt-4 btn-m disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white"
               >
-                <option value="">Select a Loader...</option>
-                {loaders.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {l.full_name} — {formatSubRole(l.sub_role)}
-                  </option>
-                ))}
-              </select>
-
-              {/* Visual preview of selected loader */}
-              {selectedLoader && (() => {
-                const loader = loaders.find(l => l.id === selectedLoader);
-                if (!loader) return null;
-                return (
-                  <div className="flex items-center gap-3 p-3 bg-ice-mist rounded-[10px] border border-[#e5e5e5]">
-                    <div className="w-8 h-8 rounded-full bg-ps-blue flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                      {loader.full_name?.charAt(0)?.toUpperCase() || "?"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-deep-charcoal truncate">{loader.full_name}</p>
-                      <p className="text-xs text-body-gray truncate">{loader.email}</p>
-                    </div>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${subRoleColor(loader.sub_role)}`}>
-                      {formatSubRole(loader.sub_role)}
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting || !selectedChapter || !selectedLoader}
-              className="w-full mt-4 bg-ps-blue text-white py-3 rounded-[999px] font-medium transition-all hover:bg-ps-cyan disabled:opacity-50 hover:scale-[1.02] active:scale-95 disabled:hover:scale-100 shadow-[0_5px_9px_0_rgba(0,0,0,0.12)]"
-            >
-              {submitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Assigning...
-                </span>
-              ) : (
-                "Assign Task"
-              )}
-            </button>
-          </form>
-        )}
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Assigning...
+                  </span>
+                ) : (
+                  "Assign Task"
+                )}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -28,7 +28,6 @@ function getDoneLabel(subRole: string | null) {
 }
 
 function getReviewStageBadge(currentStatus?: string, revisionTargetStatus?: string | null) {
-  // Determine which of the two QC approval rounds this submission targets
   const isVideoStage =
     currentStatus === "script_approved" ||
     currentStatus === "video_generated" ||
@@ -36,13 +35,13 @@ function getReviewStageBadge(currentStatus?: string, revisionTargetStatus?: stri
 
   if (isVideoStage) {
     return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#7c3aed]/10 text-[#7c3aed] border border-[#7c3aed]/20 uppercase tracking-wide">
+      <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-bold bg-[#7c3aed]/10 text-[#a78bfa] border border-[#7c3aed]/20 uppercase tracking-[1px]">
         2nd QC Review · Final Product
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-ps-blue/10 text-ps-blue border border-ps-blue/20 uppercase tracking-wide">
+    <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-bold bg-[#0066b1]/10 text-[#0066b1] border border-[#0066b1]/20 uppercase tracking-[1px]">
       1st QC Review · Script / Plan
     </span>
   );
@@ -65,7 +64,7 @@ export function SubmitModal({ taskId, userId, userName, chapterName, subRole, cu
     setError("");
     const res = await submitTaskWork(taskId, userId, url, notes);
     setLoading(false);
-    
+
     if (res.error) {
       setError(res.error);
       toast.error(res.error);
@@ -77,104 +76,109 @@ export function SubmitModal({ taskId, userId, userName, chapterName, subRole, cu
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[24px] w-full max-w-md shadow-[0_20px_60px_0_rgba(0,0,0,0.2)] p-8 relative max-h-[90vh] overflow-y-auto">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-6 right-6 p-1.5 rounded-full text-body-gray hover:bg-[#f3f3f3] hover:text-deep-charcoal transition-colors"
-          title="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-[#1a1a1a] border border-[#3c3c3c] w-full max-w-md relative max-h-[90vh] overflow-y-auto">
+        {/* M-stripe at top */}
+        <div className="m-stripe" />
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-light text-display-ink">{getDoneLabel(subRole)}</h2>
-          <p className="text-body-gray text-sm mt-1 mb-2">{chapterName}</p>
-          {getReviewStageBadge(currentStatus, revisionTargetStatus)}
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-warning-red/10 border border-warning-red/30 text-warning-red text-sm rounded-[8px]">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Proof URL */}
-          <div>
-            <label className="text-sm font-semibold text-deep-charcoal block mb-2">
-              Proof URL (Google Doc, Drive, YouTube)
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                className="flex-1 border border-[#cccccc] rounded-[8px] p-2.5 outline-none focus:border-ps-blue focus:ring-2 focus:ring-ps-blue/20 transition-all text-sm"
-                placeholder="https://docs.google.com/..."
-                required
-              />
-              {url && (
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 w-10 h-10 flex items-center justify-center rounded-[8px] border border-ps-blue/30 text-ps-blue hover:bg-ps-blue/10 transition-colors"
-                  title="Open link"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-sm font-semibold text-deep-charcoal block mb-2">
-              Handoff Notes <span className="text-body-gray font-normal">(optional)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="w-full border border-[#cccccc] rounded-[8px] p-2.5 outline-none focus:border-ps-blue focus:ring-2 focus:ring-ps-blue/20 transition-all text-sm min-h-[100px] resize-none"
-              placeholder="Instructions for QC or the next person in the chain..."
-            />
-          </div>
-
-          {/* Identity Confirmation */}
-          <div className="bg-ps-blue/5 p-4 rounded-[12px] border border-ps-blue/10">
-            <label className="text-sm font-semibold text-ps-blue block mb-2">Sign-off Confirmation</label>
-            <select
-              required
-              value={identityConfirmed}
-              onChange={e => setIdentityConfirmed(e.target.value)}
-              aria-label="Sign-off Confirmation"
-              className="w-full bg-white border border-ps-blue/30 rounded-[8px] p-2.5 text-sm outline-none focus:border-ps-blue text-deep-charcoal"
-            >
-              <option value="" disabled>Select your name to confirm identity</option>
-              <option value={userId}>{userName} (Me)</option>
-            </select>
-            <p className="text-xs text-ps-blue/70 mt-2">
-              By selecting your name, you confirm the work meets the required quality standards.
-            </p>
-          </div>
-
+        <div className="p-6 md:p-8">
           <button
-            type="submit"
-            disabled={loading || !url || identityConfirmed !== userId}
-            className="w-full bg-ps-blue hover:bg-ps-cyan text-white py-3 rounded-[999px] font-medium transition-all hover:scale-[1.02] active:scale-95 shadow-[0_5px_9px_0_rgba(0,0,0,0.12)] disabled:opacity-50 disabled:hover:scale-100"
+            type="button"
+            onClick={onClose}
+            className="absolute top-8 right-6 p-1.5 rounded-full text-[#7e7e7e] hover:bg-[#3c3c3c] hover:text-white transition-colors"
+            title="Close"
           >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Submitting...
-              </span>
-            ) : (
-              `Submit — ${getDoneLabel(subRole)}`
-            )}
+            <X className="h-5 w-5" />
           </button>
-        </form>
+
+          <div className="mb-6 pr-8">
+            <h2 className="text-base font-bold text-white tracking-[1.5px] uppercase mb-1">{getDoneLabel(subRole)}</h2>
+            <p className="text-[#7e7e7e] text-xs mb-3 uppercase tracking-[1px]">{chapterName}</p>
+            {getReviewStageBadge(currentStatus, revisionTargetStatus)}
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-[#e22718]/10 border border-[#e22718]/30 text-[#e22718] text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Proof URL */}
+            <div>
+              <label className="text-[10px] font-bold text-[#bbbbbb] uppercase tracking-[1.5px] block mb-2">
+                Proof URL (Google Doc, Drive, YouTube)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={e => setUrl(e.target.value)}
+                  className="flex-1 bg-[#0d0d0d] border border-[#3c3c3c] p-2.5 outline-none focus:border-[#0066b1] focus:ring-1 focus:ring-[#0066b1] transition-all text-sm text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+                  placeholder="https://docs.google.com/..."
+                  required
+                />
+                {url && (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 w-10 h-10 flex items-center justify-center border border-[#0066b1]/30 text-[#0066b1] hover:bg-[#0066b1]/10 transition-colors"
+                    title="Open link"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-[10px] font-bold text-[#bbbbbb] uppercase tracking-[1.5px] block mb-2">
+                Handoff Notes <span className="text-[#7e7e7e] font-normal normal-case">(optional)</span>
+              </label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="w-full bg-[#0d0d0d] border border-[#3c3c3c] p-2.5 outline-none focus:border-[#0066b1] focus:ring-1 focus:ring-[#0066b1] transition-all text-sm text-[#e6e6e6] min-h-[100px] resize-none placeholder:text-[#7e7e7e]"
+                placeholder="Instructions for QC or the next person in the chain..."
+              />
+            </div>
+
+            {/* Identity Confirmation */}
+            <div className="bg-[#1c69d4]/10 border border-[#1c69d4]/30 p-4">
+              <label className="text-[10px] font-bold text-[#1c69d4] uppercase tracking-[1.5px] block mb-2">Sign-off Confirmation</label>
+              <select
+                required
+                value={identityConfirmed}
+                onChange={e => setIdentityConfirmed(e.target.value)}
+                aria-label="Sign-off Confirmation"
+                className="w-full bg-[#0d0d0d] border border-[#1c69d4]/30 p-2.5 text-sm outline-none focus:border-[#1c69d4] text-[#e6e6e6]"
+              >
+                <option value="" disabled>Select your name to confirm identity</option>
+                <option value={userId}>{userName} (Me)</option>
+              </select>
+              <p className="text-xs text-[#1c69d4]/70 mt-2">
+                By selecting your name, you confirm the work meets the required quality standards.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !url || identityConfirmed !== userId}
+              className="w-full btn-m disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Submitting...
+                </span>
+              ) : (
+                `Submit — ${getDoneLabel(subRole)}`
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

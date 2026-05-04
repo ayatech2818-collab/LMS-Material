@@ -1,24 +1,58 @@
 @import "tailwindcss";
 
 :root {
-  /* PlayStation Theme Variables */
-  --ps-blue: #0070cc;
-  --ps-cyan: #1eaedb;
+  /* BMW M Design System Tokens */
+  --canvas: #000000;
+  --surface-card: #1a1a1a;
+  --surface-elevated: #262626;
+  --surface-soft: #0d0d0d;
+  --carbon-gray: #2b2b2b;
+  --hairline: #3c3c3c;
+  --on-dark: #ffffff;
+  --body: #bbbbbb;
+  --body-strong: #e6e6e6;
+  --muted: #7e7e7e;
+  --m-blue-light: #0066b1;
+  --m-blue-dark: #1c69d4;
+  --m-red: #e22718;
+  --warning: #f4b400;
+  --success: #0fa336;
+
+  /* Legacy aliases kept for any remaining usage */
+  --ps-blue: #0066b1;
+  --ps-cyan: #1c69d4;
   --console-black: #000000;
-  --shadow-black: #121314;
-  --paper-white: #ffffff;
-  --ice-mist: #f5f7fa;
-  --divider-tint: #e8e8e8;
-  --display-ink: #000000;
-  --deep-charcoal: #1f1f1f;
-  --body-gray: #4a4a4a;
-  --mute-gray: #999999;
+  --shadow-black: #0d0d0d;
+  --paper-white: #1a1a1a;
+  --ice-mist: #262626;
+  --divider-tint: #3c3c3c;
+  --display-ink: #ffffff;
+  --deep-charcoal: #e6e6e6;
+  --body-gray: #bbbbbb;
+  --mute-gray: #7e7e7e;
   --inverse-white: #ffffff;
-  --commerce-orange: #d53b00;
-  --warning-red: #c81b3a;
+  --commerce-orange: #e22718;
+  --warning-red: #e22718;
 }
 
 @theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface-card: var(--surface-card);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-soft: var(--surface-soft);
+  --color-carbon-gray: var(--carbon-gray);
+  --color-hairline: var(--hairline);
+  --color-on-dark: var(--on-dark);
+  --color-body: var(--body);
+  --color-body-strong: var(--body-strong);
+  --color-muted: var(--muted);
+  --color-m-blue-light: var(--m-blue-light);
+  --color-m-blue-dark: var(--m-blue-dark);
+  --color-m-red: var(--m-red);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+
+  /* Legacy aliases */
   --color-ps-blue: var(--ps-blue);
   --color-ps-cyan: var(--ps-cyan);
   --color-console-black: var(--console-black);
@@ -33,48 +67,79 @@
   --color-inverse-white: var(--inverse-white);
   --color-commerce-orange: var(--commerce-orange);
   --color-warning-red: var(--warning-red);
-  
+
   --font-sans: var(--font-inter);
 }
 
 body {
-  background-color: var(--console-black);
-  color: var(--inverse-white);
+  background-color: var(--canvas);
+  color: var(--on-dark);
 }
 
-/* Force all form elements to use dark text on light backgrounds */
 input, select, textarea {
-  color: var(--deep-charcoal);
+  color: var(--body-strong);
 }
 
 input::placeholder, textarea::placeholder {
-  color: var(--mute-gray);
+  color: var(--muted);
 }
 
-/* Base PlayStation signature button styling */
-.btn-playstation {
-  background-color: var(--ps-blue);
-  color: var(--inverse-white);
-  border-radius: 999px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
+/* BMW M signature button */
+.btn-m {
+  background-color: transparent;
+  color: var(--on-dark);
+  border-radius: 0px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   transition: all 180ms ease;
   outline: none;
-  border: 2px solid transparent;
+  border: 1px solid var(--on-dark);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1.5rem;
+  padding: 0 1.5rem;
+  min-height: 48px;
+}
+
+.btn-m:hover, .btn-m:focus {
+  background-color: var(--on-dark);
+  color: var(--canvas);
+}
+
+.btn-m:active {
+  opacity: 0.8;
+}
+
+/* Keep legacy class mapped to btn-m */
+.btn-playstation {
+  background-color: transparent;
+  color: var(--on-dark);
+  border-radius: 0px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: all 180ms ease;
+  outline: none;
+  border: 1px solid var(--on-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.5rem;
+  min-height: 48px;
 }
 
 .btn-playstation:hover, .btn-playstation:focus {
-  background-color: var(--ps-cyan);
-  color: #ffffff;
-  border-color: #ffffff;
-  box-shadow: 0 0 0 2px var(--ps-blue);
-  transform: scale(1.03);
+  background-color: var(--on-dark);
+  color: var(--canvas);
 }
 
 .btn-playstation:active {
-  opacity: 0.6;
+  opacity: 0.8;
+}
+
+/* M-stripe divider */
+.m-stripe {
+  height: 4px;
+  background: linear-gradient(to right, #0066b1 33%, #1c69d4 33% 66%, #e22718 66%);
 }

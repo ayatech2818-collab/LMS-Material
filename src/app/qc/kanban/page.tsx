@@ -54,21 +54,33 @@ export default async function QCKanbanPage() {
   }));
 
   // 2. This QC user's review history — include full task hierarchy so modal shows all fields
-  const { data: myHistory } = await adminSupabase
-    .from("task_history")
-    .select(`
-      id, action, notes, proof_url, created_at,
-      tasks (
-        id, title, current_status,
-        board:board_id(name),
-        class:class_id(name),
-        subject:subject_id(name),
-        chapter:hierarchies!tasks_chapter_id_fkey(name)
-      )
-    `)
-    .eq("changed_by", user?.id)
-    .in("action", ["qc_approved_script", "qc_approved_video", "qc_rejected_script", "qc_rejected_video"])
-    .order("created_at", { ascending: false });
+  //    Fetch in batches to avoid Supabase default 1000-row limit
+  let myHistory: any[] = [];
+  let historyOffset = 0;
+  const HISTORY_PAGE_SIZE = 1000;
+  while (true) {
+    const { data: batch, error: histErr } = await adminSupabase
+      .from("task_history")
+      .select(`
+        id, action, notes, proof_url, created_at,
+        tasks (
+          id, title, current_status,
+          board:board_id(name),
+          class:class_id(name),
+          subject:subject_id(name),
+          chapter:hierarchies!tasks_chapter_id_fkey(name)
+        )
+      `)
+      .eq("changed_by", user?.id)
+      .in("action", ["qc_approved_script", "qc_approved_video", "qc_rejected_script", "qc_rejected_video"])
+      .order("created_at", { ascending: false })
+      .range(historyOffset, historyOffset + HISTORY_PAGE_SIZE - 1);
+    if (histErr) { console.error("QC history fetch error:", histErr); break; }
+    if (!batch || batch.length === 0) break;
+    myHistory = myHistory.concat(batch);
+    if (batch.length < HISTORY_PAGE_SIZE) break;
+    historyOffset += HISTORY_PAGE_SIZE;
+  }
 
   // Categorize historical tasks (deduplicated — only latest action per task)
   const approvedTasksRaw: any[] = [];
@@ -122,13 +134,13 @@ export default async function QCKanbanPage() {
   return (
     <>
       <Header title="QC Reviews" />
-      <div className="max-w-[1920px] mx-auto w-full px-6 flex flex-col h-[calc(100vh-80px)]">
-        <section className="mb-6 mt-6">
-          <h2 className="text-3xl font-light text-display-ink mb-1">Kanban Queue</h2>
-          <p className="text-body-gray">Manage your pipeline of approvals.</p>
+      <div className="max-w-[1920px] mx-auto w-full flex flex-col" style={{ height: 'calc(100vh - 10rem)' }}>
+        <section className="shrink-0 mb-3 mt-1">
+          <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-1">Kanban Queue</h2>
+          <p className="text-[#bbbbbb] text-sm">Manage your pipeline of approvals.</p>
         </section>
 
-        <div className="flex-1 min-h-0 overflow-hidden mb-6">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <QCBoard
             userId={user!.id}
             pendingTasks={enrichedPendingTasks}

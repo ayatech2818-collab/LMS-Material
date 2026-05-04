@@ -7,18 +7,18 @@ export function PasswordCell({ password }: { password: string | null }) {
   const [visible, setVisible] = useState(false);
 
   if (!password) {
-    return <span className="text-mute-gray text-sm">-</span>;
+    return <span className="text-[#7e7e7e] text-sm">-</span>;
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-sm text-deep-charcoal font-mono">
+      <span className="text-sm text-[#e6e6e6] font-mono">
         {visible ? password : "••••••••"}
       </span>
       <button
         type="button"
         onClick={() => setVisible(!visible)}
-        className="p-1 hover:bg-ice-mist rounded transition-colors text-mute-gray hover:text-deep-charcoal"
+        className="p-1 hover:bg-[#3c3c3c] rounded-full transition-colors text-[#7e7e7e] hover:text-white"
         title={visible ? "Hide password" : "Show password"}
         aria-label={visible ? "Hide password" : "Show password"}
       >
