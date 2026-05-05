@@ -109,11 +109,39 @@ function AssignModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Determine which sub_role is expected for this task's stage
+  const getExpectedSubRole = (status: string): string | null => {
+    switch (status) {
+      case "assigned":        return "script_writer";
+      case "script_approved": return "video_audio_generator";
+      case "video_generated": return "video_editor";
+      case "needs_revision":
+        // Use revision_target_status to determine the correct role
+        if (task.revision_target_status === "video_generated") return "video_editor";
+        return "script_writer";
+      default: return null; // show all loaders for statuses without a clear mapping
+    }
+  };
+
+  // Determine the correct stage value for task_assignments (not raw status)
+  const getAssignmentStage = (status: string): string => {
+    if (status === "needs_revision") {
+      return task.revision_target_status ?? "assigned";
+    }
+    return status;
+  };
+
+  const expectedSubRole = getExpectedSubRole(task.current_status);
+  const filteredLoaders = expectedSubRole
+    ? loaders.filter(l => l.sub_role === expectedSubRole)
+    : loaders;
+
   const handleSubmit = async () => {
     if (!selectedLoader) return;
     setSubmitting(true);
     setError("");
-    const res = await assignLoaderToTask(task.id, selectedLoader, task.current_status);
+    const stage = getAssignmentStage(task.current_status);
+    const res = await assignLoaderToTask(task.id, selectedLoader, stage);
     if (res.error) {
       setError(res.error);
     } else {
@@ -123,7 +151,7 @@ function AssignModal({
     setSubmitting(false);
   };
 
-  const selectedLoaderData = loaders.find(l => l.id === selectedLoader);
+  const selectedLoaderData = filteredLoaders.find(l => l.id === selectedLoader);
   const taskLabel = [task.board?.name, task.subject?.name, task.chapter?.name]
     .filter(Boolean)
     .join(" • ") || "Task";
@@ -143,6 +171,11 @@ function AssignModal({
         <div className="mb-5">
           <h2 className="text-xs font-bold text-[#7e7e7e] uppercase tracking-[3px] mb-1">Assign Loader</h2>
           <p className="text-[#bbbbbb] text-sm truncate">{taskLabel}</p>
+          {expectedSubRole && (
+            <p className="text-[10px] text-[#f4b400] uppercase tracking-[1px] mt-1">
+              Showing: {formatSubRole(expectedSubRole)}s only
+            </p>
+          )}
         </div>
 
         {error && (
@@ -160,12 +193,18 @@ function AssignModal({
             className="w-full bg-[#0d0d0d] border border-[#3c3c3c] p-2.5 outline-none focus:border-[#0066b1] transition-all text-sm text-[#e6e6e6]"
           >
             <option value="">Select a Loader...</option>
-            {loaders.map(l => (
+            {filteredLoaders.map(l => (
               <option key={l.id} value={l.id}>
                 {l.full_name} — {formatSubRole(l.sub_role)}
               </option>
             ))}
           </select>
+
+          {filteredLoaders.length === 0 && (
+            <div className="p-3 bg-[#e22718]/10 border border-[#e22718]/30 text-[#e22718] text-xs">
+              No active {expectedSubRole ? formatSubRole(expectedSubRole) : "loader"}s found.
+            </div>
+          )}
 
           {selectedLoaderData && (
             <div className="flex items-center gap-3 p-3 bg-[#262626] border border-[#3c3c3c]">
@@ -640,15 +679,25 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
     const loader = loaders.find(l => l.id === loaderId);
     setTasks(prev => prev.map(t => {
       if (t.id !== taskId) return t;
-      const filtered = (t.task_assignments || []).filter((a) => a.stage !== t.current_status);
+
+      // Determine semantic stage (same logic as Bug 5 fix)
+      let stage = t.current_status;
+      if (stage === "needs_revision") {
+        stage = t.revision_target_status ?? "assigned";
+      }
+
       return {
         ...t,
         task_assignments: [
-          ...filtered,
-          { stage: t.current_status, user: loader ? { full_name: loader.full_name, sub_role: loader.sub_role, avatar_url: null } : null }
+          {
+            stage: stage,
+            user: loader ? { full_name: loader.full_name, sub_role: loader.sub_role, avatar_url: null } : null
+          }
         ]
       };
     }));
+    // We don't necessarily need router.refresh() if optimistic update is perfect, 
+    // but it ensures server-side state matches soon after.
     router.refresh();
   }
 

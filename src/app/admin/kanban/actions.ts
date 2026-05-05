@@ -156,8 +156,9 @@ export async function createTask({ board_id, class_id, subject_id, chapter_id, l
   await supabase.from("task_history").insert({
     task_id: taskId,
     changed_by: loader_id,
+    previous_status: existingTask?.current_status ?? null,
     new_status: "assigned",
-    action: existingTask ? "reassigned" : "created"
+    action: existingTask ? "admin_reset_reassigned" : "created"
   });
 
   return { success: true };

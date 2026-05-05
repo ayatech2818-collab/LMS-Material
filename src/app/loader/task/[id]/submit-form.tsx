@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import { submitTaskWork } from "./actions";
 import { toast } from "sonner";
 
-export function SubmitWorkForm({ taskId, userId, userName }: { taskId: string, userId: string, userName: string }) {
+export function SubmitWorkForm({ 
+  taskId, 
+  userId, 
+  userName,
+  subRole 
+}: { 
+  taskId: string, 
+  userId: string, 
+  userName: string,
+  subRole: string | null 
+}) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [notes, setNotes] = useState("");
@@ -26,6 +36,15 @@ export function SubmitWorkForm({ taskId, userId, userName }: { taskId: string, u
       router.push("/loader");
     } else {
       toast.error(res.error || "Failed to submit work.");
+    }
+  };
+
+  const getDoneLabel = () => {
+    switch (subRole) {
+      case "script_writer":         return "Done Scripting";
+      case "video_audio_generator": return "Video Done";
+      case "video_editor":          return "Done Editing";
+      default:                      return "Submit to QC";
     }
   };
 
@@ -82,7 +101,7 @@ export function SubmitWorkForm({ taskId, userId, userName }: { taskId: string, u
           disabled={loading || !url || identityConfirmed !== userId}
           className="w-full btn-m disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white disabled:cursor-not-allowed"
         >
-          {loading ? "Submitting..." : "Submit to QC"}
+          {loading ? "Submitting..." : getDoneLabel()}
         </button>
       </form>
     </div>

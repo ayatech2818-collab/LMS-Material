@@ -26,6 +26,7 @@ export default async function LoaderDashboardPage() {
         id, current_status, revision_target_status, created_at,
         title,
         board:board_id(name),
+        class:class_id(name),
         subject:subject_id(name),
         chapter:chapter_id(name)
       )

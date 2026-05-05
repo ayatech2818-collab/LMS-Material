@@ -16,7 +16,7 @@ export default async function TaskExecutionPage({ params }: { params: Promise<{ 
 
   const { data: profile } = await adminClient
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, sub_role")
     .eq("id", user?.id)
     .single();
 
@@ -147,7 +147,12 @@ export default async function TaskExecutionPage({ params }: { params: Promise<{ 
               )}
             </div>
           ) : (
-            <SubmitWorkForm taskId={task.id} userId={user!.id} userName={profile?.full_name || "Unknown Identity"} />
+            <SubmitWorkForm 
+              taskId={task.id} 
+              userId={user?.id ?? ""} 
+              userName={profile?.full_name || "Unknown Identity"} 
+              subRole={profile?.sub_role ?? null}
+            />
           )}
         </div>
 

@@ -2,29 +2,36 @@
 
 import { useState } from "react";
 import { loginAction } from "@/app/actions/auth";
+import { useLoading } from "@/context/loading-context";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { setIsLoading } = useLoading();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setIsLoading(true); // Trigger global preloader shutter
     setError(null);
 
     try {
       const result = await loginAction(email, password);
       if (result.error) {
         setError(result.error);
+        setIsLoading(false); // Open shutter if there is an error
       } else if (result.role) {
+        // Keep shutter closed while page redirects
         window.location.href = `/${result.role}`;
       } else {
         setError("Account not fully set up. Contact your administrator.");
+        setIsLoading(false);
       }
     } catch {
       setError("Failed to sign in. Please try again.");
+      setIsLoading(false);
     } finally {
       setLoading(false);
     }

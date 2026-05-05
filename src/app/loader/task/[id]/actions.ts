@@ -16,15 +16,29 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
 
   // 2. Determine next status based on the full state machine:
   //
-  //  Stage 1 — Script:
-  //    assigned            → script_generated   (loader submits script → QC 1st review)
-  //    needs_revision      → determined by revision_target_status:
-  //                           "assigned"        → script_generated  (re-submit script to QC)
-  //                           "video_generated" → video_edited      (re-submit video to QC)
+  //  FULL PIPELINE:
   //
-  //  Stage 2 — Final / Video:
-  //    script_approved     → video_edited       (loader submits final product → QC 2nd review)
-  //    video_generated     → video_edited       (dedicated video generator submits → QC 2nd review)
+  //    [Admin] assigns script_writer
+  //         ↓
+  //    assigned  ──[script_writer submits]──► script_generated  ──► QC 1st review
+  //                                                                       ↓
+  //                                                              script_approved
+  //                                                        + AUTO-ASSIGN video_audio_generator
+  //                                                                       ↓
+  //                                            [video_audio_generator submits]
+  //                                                                       ↓
+  //                                                              video_generated
+  //                                                        + AUTO-ASSIGN video_editor
+  //                                                                       ↓
+  //                                                       [video_editor submits]
+  //                                                                       ↓
+  //                                                              video_edited  ──► QC 2nd review
+  //                                                                       ↓
+  //                                                              final_approved  ✓ DONE
+  //
+  //  REVISION PATHS (needs_revision → determined by revision_target_status):
+  //    revision_target_status = "assigned"        → re-submit goes to script_generated  (QC 1st)
+  //    revision_target_status = "video_generated" → re-submit goes to video_edited       (QC 2nd)
   let nextStatus: string;
   const revisionTargetStatus = (task as { current_status: string; revision_target_status?: string | null }).revision_target_status;
 
@@ -42,7 +56,7 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
       nextStatus = "video_generated";
       break;
     case "video_generated":
-      // Dedicated video-audio generator finished; submit to QC for final review
+      // video_editor finished editing; task goes to QC for final (2nd) review
       nextStatus = "video_edited";
       break;
     default:
@@ -67,8 +81,13 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
     notes: notes
   });
 
+  // script_approved → video_generated:
+  // video_audio_generator has finished generating the video.
+  // Auto-assign the least-busy video_editor so they can edit it next.
   if (task.current_status === "script_approved") {
-    // After status update: auto-assign to least-busy video_editor
+    // Always clear old assignment — prevents the old assignee from double-submitting
+    await supabase.from("task_assignments").delete().eq("task_id", taskId);
+
     const { data: specialists } = await supabase
       .from("profiles")
       .select("id")
@@ -91,7 +110,6 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
       const tied = counts.filter((c) => c.count === min);
       const selected = tied[Math.floor(Math.random() * tied.length)];
 
-      await supabase.from("task_assignments").delete().eq("task_id", taskId);
       await supabase.from("task_assignments").insert({
         task_id: taskId,
         user_id: selected.id,
@@ -99,6 +117,11 @@ export async function submitTaskWork(taskId: string, userId: string, proofUrl: s
       });
     }
   }
+
+  // video_generated → video_edited:
+  // video_editor has finished editing and submitted. Task now awaits QC 2nd review.
+  // No auto-assignment needed — QC handles approve/reject from here.
+  // On QC approval → final_approved (pipeline complete).
 
   revalidatePath("/loader");
   revalidatePath("/loader/task/" + taskId);

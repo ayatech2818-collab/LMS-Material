@@ -42,6 +42,7 @@ export type LoaderTask = {
   created_at: string;
   title?: string | null;
   board?: { name: string } | null;
+  class?: { name: string } | null;
   subject?: { name: string } | null;
   chapter?: { name: string } | null;
 };
@@ -52,6 +53,7 @@ function getApprovalStage(task: LoaderTask): "script" | "video" {
   if (s === "needs_revision") {
     return task.revision_target_status === "assigned" ? "script" : "video";
   }
+  // script_approved and video_generated stages both fall under the "Video" workflow category
   return "video";
 }
 
@@ -182,9 +184,14 @@ function SortableTaskCard({
         <StageBadge stage={stage} />
       </div>
 
-      <p className="text-sm text-[#e6e6e6] font-medium line-clamp-2 mb-3">
+      <p className="text-sm text-[#e6e6e6] font-medium line-clamp-2 mb-1">
         {task.board?.name ? `${task.board.name} • ${task.subject?.name}` : task.title || "Untitled Task"}
       </p>
+      {task.class?.name && (
+        <p className="text-[10px] text-[#7e7e7e] uppercase tracking-[0.5px] mb-3">
+          {task.class.name}
+        </p>
+      )}
 
       <div className="mb-3">
         <div className="flex items-center gap-1.5 mb-1.5">
@@ -265,9 +272,14 @@ function CompletedTaskCard({ task }: { task: LoaderTask }) {
         <StageBadge stage="video" />
       </div>
 
-      <p className="text-sm text-[#e6e6e6] font-medium line-clamp-2 mb-3">
+      <p className="text-sm text-[#e6e6e6] font-medium line-clamp-2 mb-1">
         {task.board?.name ? `${task.board.name} • ${task.subject?.name}` : task.title || "Untitled Task"}
       </p>
+      {task.class?.name && (
+        <p className="text-[10px] text-[#7e7e7e] uppercase tracking-[0.5px] mb-3">
+          {task.class.name}
+        </p>
+      )}
 
       <div className="flex items-center gap-2 text-[10px] text-[#0fa336] font-bold uppercase tracking-[1.5px] bg-[#0fa336]/10 border border-[#0fa336]/20 px-3 py-2">
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
@@ -398,9 +410,17 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole }: 
       const savedLinks    = localStorage.getItem(`loader_links_${userId}`);
       const savedProgress = localStorage.getItem(`loader_progress_${userId}`);
       if (savedLinks)    setLinks(JSON.parse(savedLinks));
-      if (savedProgress) setInProgressIds(new Set(JSON.parse(savedProgress)));
+      if (savedProgress) {
+        const allIds: string[] = JSON.parse(savedProgress);
+        // Remove tasks that are now in needs_revision or submitted/completed — they must NOT stay in "In Progress"
+        const validIds = allIds.filter(id => {
+          const task = initialTasks.find(t => t.id === id);
+          return task && !["needs_revision", "script_generated", "video_edited", "final_approved"].includes(task.current_status);
+        });
+        setInProgressIds(new Set(validIds));
+      }
     } catch { /* ignore */ }
-  }, [userId]);
+  }, [userId, initialTasks]);
 
   useEffect(() => {
     if (!mounted) return;

@@ -5,16 +5,22 @@ import { LayoutDashboard, Users, Layers, LayoutList, LogOut, BarChart3, Menu, X 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
+import { useLoading } from "@/context/loading-context";
 
 export function Sidebar({ role }: { role: "admin" | "qc" | "loader" }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { setIsLoading } = useLoading();
 
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.replace("/login");
+  };
+
+  const handleNavClick = (href: string) => {
+    setMobileOpen(false);
   };
 
   const navItems = role === "admin" ? [
@@ -53,7 +59,7 @@ export function Sidebar({ role }: { role: "admin" | "qc" | "loader" }) {
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => handleNavClick(item.href)}
               className={`flex items-center gap-4 px-4 py-3 transition-colors relative ${
                 isActive
                   ? "bg-[#1a1a1a] text-white border-l-[3px] border-[#0066b1]"

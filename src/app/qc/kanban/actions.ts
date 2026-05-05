@@ -26,6 +26,9 @@ export async function approveTask(taskId: string, userId: string, currentStatus:
       .eq("sub_role", "video_audio_generator")
       .eq("is_active", true);
 
+    // Always clear old assignment — prevents the old assignee from double-submitting
+    await supabase.from("task_assignments").delete().eq("task_id", taskId);
+
     if (specialists && specialists.length > 0) {
       // Count non-completed active tasks for each
       const counts = await Promise.all(
@@ -44,15 +47,14 @@ export async function approveTask(taskId: string, userId: string, currentStatus:
       const tied = counts.filter((c) => c.count === min);
       const selected = tied[Math.floor(Math.random() * tied.length)];
 
-      await supabase.from("task_assignments").delete().eq("task_id", taskId);
       await supabase.from("task_assignments").insert({
         task_id: taskId,
         user_id: selected.id,
         stage: "script_approved"
       });
     }
-    // If no dedicated video person exists, the original script_writer's assignment is
-    // kept so they can submit the video work from their board.
+    // If no dedicated video person exists, the assignment is cleared for safety.
+    // The admin must manually assign a specialist from the Kanban board.
   } else {
     // video_edited -> final_approved
     await supabase.from("tasks").update({ current_status: "final_approved" }).eq("id", taskId);

@@ -121,7 +121,7 @@ export default async function QCDashboard({
                 {pendingTasks.map((task: any) => (
                   <li key={task.id} className="px-5 md:px-6 py-4 hover:bg-[#262626] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{task.title}</p>
+                      <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{task.chapter?.name || "Untitled Chapter"}</p>
                       <p className="text-xs text-[#7e7e7e]">
                         Chapter: {task.chapter?.name || "Unknown"} •{" "}
                         <span className="text-[#e22718] uppercase font-bold">{task.current_status.replace(/_/g, ' ')}</span>
