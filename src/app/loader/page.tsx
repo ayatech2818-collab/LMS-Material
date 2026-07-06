@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LoaderBoard, type LoaderTask } from "@/components/loader/loader-board";
 import { formatSubRole } from "@/lib/utils";
+import { getLoaderStatsForUser } from "@/lib/task-stats";
 
 export const revalidate = 0;
 
@@ -37,38 +38,23 @@ export default async function LoaderDashboardPage() {
     console.error("Loader assignments query error:", assignError);
   }
 
-  const allTasksMap = new Map<string, LoaderTask>();
+  const allTasksMap: Record<string, LoaderTask> = {};
   (assignments || []).forEach((a) => {
     const t = a.tasks as unknown as LoaderTask | null;
     if (!t) return;
-    if (!allTasksMap.has(t.id)) {
-      allTasksMap.set(t.id, t);
+    if (!allTasksMap[t.id]) {
+      allTasksMap[t.id] = t;
     }
   });
-  const allTasks = Array.from(allTasksMap.values());
-
-  const { data: historyItems } = await adminClient
-    .from("task_history")
-    .select("task_id, action")
-    .eq("changed_by", user?.id)
-    .eq("action", "submitted");
-
-  const submittedUniqueTaskIds = new Set<string>();
-  historyItems?.forEach(h => {
-    submittedUniqueTaskIds.add(h.task_id);
-  });
+  const allTasks = Object.values(allTasksMap);
 
   const totalAssigned = allTasks.filter((t) => t.current_status !== "final_approved").length;
   const revisionsCount = allTasks.filter((t) => t.current_status === "needs_revision").length;
-  const totalSubmissionsUnique = submittedUniqueTaskIds.size;
-  
-  // Completed tasks: Tasks they have submitted at least once, but are no longer actively assigned to them
-  let completedCount = 0;
-  submittedUniqueTaskIds.forEach(taskId => {
-    if (!allTasksMap.has(taskId)) {
-      completedCount++;
-    }
-  });
+
+  // Total submissions + completed ("submitted & handed off") from the shared source of
+  // truth, so this matches the admin dashboard and user-management figures exactly.
+  const { totalSubmissions: totalSubmissionsUnique, completed: completedCount } =
+    await getLoaderStatsForUser(adminClient, user?.id ?? "");
 
   return (
     <>

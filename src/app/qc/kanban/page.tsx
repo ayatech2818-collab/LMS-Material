@@ -85,17 +85,17 @@ export default async function QCKanbanPage() {
   // Categorize historical tasks (deduplicated per category — latest action per task per type)
   const approvedTasksRaw: any[] = [];
   const rejectedTasksRaw: any[] = [];
-  const approvedTaskIds = new Set();
-  const rejectedTaskIds = new Set();
+  const approvedTaskIds: Record<string, boolean> = {};
+  const rejectedTaskIds: Record<string, boolean> = {};
 
   (myHistory || []).forEach((history: any) => {
     if (!history.tasks) return;
 
-    if (history.action.includes("approved") && !approvedTaskIds.has(history.tasks.id)) {
-      approvedTaskIds.add(history.tasks.id);
+    if (history.action.includes("approved") && !approvedTaskIds[history.tasks.id]) {
+      approvedTaskIds[history.tasks.id] = true;
       approvedTasksRaw.push(history);
-    } else if (history.action.includes("rejected") && !rejectedTaskIds.has(history.tasks.id)) {
-      rejectedTaskIds.add(history.tasks.id);
+    } else if (history.action.includes("rejected") && !rejectedTaskIds[history.tasks.id]) {
+      rejectedTaskIds[history.tasks.id] = true;
       rejectedTasksRaw.push(history);
     }
   });

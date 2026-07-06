@@ -2,6 +2,7 @@ import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { HistoryBoard } from "./history-board";
+import { countHandedOff } from "@/lib/task-stats";
 
 export const revalidate = 0;
 
@@ -33,12 +34,12 @@ export default async function LoaderHistoryPage() {
     .eq("user_id", user?.id);
 
   // Deduplicate tasks
-  const taskMap = new Map<string, any>();
+  const taskMap: Record<string, any> = {};
   (assignments || []).forEach((a: any) => {
     const t = a.tasks;
-    if (t && !taskMap.has(t.id)) taskMap.set(t.id, t);
+    if (t && !taskMap[t.id]) taskMap[t.id] = t;
   });
-  const allTasks = Array.from(taskMap.values());
+  const allTasks = Object.values(taskMap);
 
   // 2. Full history for this user's tasks (all actions by everyone)
   const taskIds = allTasks.map((t: any) => t.id);
@@ -64,6 +65,13 @@ export default async function LoaderHistoryPage() {
   const completedTasks = allTasks.filter((t: any) => t.current_status === "final_approved");
   const activeTasks = allTasks.filter((t: any) => t.current_status !== "final_approved");
   const mySubmissions = historyRecords.filter((h: any) => h.changed_by === user?.id && h.action === "submitted");
+
+  // Canonical "completed" = distinct submitted tasks no longer assigned to them, matching
+  // the loader dashboard and admin views. (completedTasks below stays final_approved-only,
+  // since avgCompletionDays legitimately measures time to *final* completion.)
+  const submittedIds = new Set<string>(mySubmissions.map((h) => h.task_id));
+  const assignedIds = new Set<string>(allTasks.map((t) => t.id));
+  const totalCompleted = countHandedOff(submittedIds, assignedIds);
   const approvals = historyRecords.filter((h: any) =>
     h.action === "qc_approved_script" || h.action === "qc_approved_video"
   );
@@ -110,7 +118,7 @@ export default async function LoaderHistoryPage() {
 
   const stats = {
     totalTasks: allTasks.length,
-    totalCompleted: completedTasks.length,
+    totalCompleted,
     totalActive: activeTasks.length,
     totalSubmissions: mySubmissions.length,
     approvals: approvals.length,

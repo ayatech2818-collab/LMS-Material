@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { BarChart } from "@/components/dashboard/bar-chart";
 import { ProductivityTable } from "@/components/dashboard/productivity-table";
 import { formatSubRole } from "@/lib/utils";
+import { getCompletedTaskCounts } from "@/lib/task-stats";
 
 export const revalidate = 0;
 
@@ -34,13 +35,17 @@ export default async function AdminDashboardPage() {
   const { data: users } = await supabase.from("profiles").select("id, full_name, role, sub_role");
   const { data: assignments } = await supabase.from("task_assignments").select("user_id");
 
+  const completedCounts = await getCompletedTaskCounts(supabase);
+
   const productivityData = (users || []).map(u => {
     const handles = (assignments || []).filter(a => a.user_id === u.id).length;
+    const completed = completedCounts[u.id] || 0;
     return {
       fullName: u.full_name,
       role: u.role,
       subRole: formatSubRole(u.sub_role),
-      tasksAssigned: handles
+      tasksAssigned: handles,
+      tasksDone: completed
     };
   }).sort((a,b) => b.tasksAssigned - a.tasksAssigned);
 
