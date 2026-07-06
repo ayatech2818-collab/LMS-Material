@@ -59,6 +59,9 @@ export async function approveTask(taskId: string, userId: string, currentStatus:
     // video_edited -> final_approved
     await supabase.from("tasks").update({ current_status: "final_approved" }).eq("id", taskId);
 
+    // Clear assignment — task is complete
+    await supabase.from("task_assignments").delete().eq("task_id", taskId);
+
     await supabase.from("task_history").insert({
       task_id: taskId,
       changed_by: userId,
