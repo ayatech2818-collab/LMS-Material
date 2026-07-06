@@ -154,6 +154,7 @@ export function AddUserForm() {
                 <option value="admin">Administrator</option>
                 <option value="qc">Quality Checker (QC)</option>
                 <option value="loader">Material Loader</option>
+                <option value="uploader">Video Uploader</option>
               </select>
             </div>
 

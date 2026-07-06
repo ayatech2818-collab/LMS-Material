@@ -17,6 +17,7 @@ export function formatRole(role: string): string {
     case "admin": return "Administrator";
     case "qc": return "Quality Checker";
     case "loader": return "Material Loader";
+    case "uploader": return "Video Uploader";
     default: return role;
   }
 }

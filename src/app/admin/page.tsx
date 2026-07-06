@@ -16,13 +16,11 @@ export default async function AdminDashboardPage() {
     supabase.from("profiles").select("*", { count: "exact", head: true }).neq("role", "admin")
   ]);
 
-  const { data: rawTasks } = await supabase.from("tasks").select("current_status");
+  const { data: statusRows } = await supabase.rpc("get_task_status_counts");
   const statusCounts: Record<string, number> = {};
-  if (rawTasks) {
-    rawTasks.forEach(task => {
-      statusCounts[task.current_status] = (statusCounts[task.current_status] || 0) + 1;
-    });
-  }
+  (statusRows ?? []).forEach((r: { status: string; count: number }) => {
+    statusCounts[r.status] = r.count;
+  });
   const chartData = [
     { status: "Assigned", count: statusCounts["assigned"] || 0 },
     { status: "Script Done", count: statusCounts["script_generated"] || 0 },
@@ -33,12 +31,16 @@ export default async function AdminDashboardPage() {
   ];
 
   const { data: users } = await supabase.from("profiles").select("id, full_name, role, sub_role");
-  const { data: assignments } = await supabase.from("task_assignments").select("user_id");
+  const { data: handleRows } = await supabase.rpc("get_assignment_counts");
+  const handlesByUser: Record<string, number> = {};
+  (handleRows ?? []).forEach((r: { user_id: string; count: number }) => {
+    handlesByUser[r.user_id] = r.count;
+  });
 
   const completedCounts = await getCompletedTaskCounts(supabase);
 
   const productivityData = (users || []).map(u => {
-    const handles = (assignments || []).filter(a => a.user_id === u.id).length;
+    const handles = handlesByUser[u.id] || 0;
     const completed = completedCounts[u.id] || 0;
     return {
       fullName: u.full_name,

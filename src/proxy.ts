@@ -42,7 +42,8 @@ export async function proxy(request: NextRequest) {
     !user &&
     (pathname.startsWith('/admin') ||
       pathname.startsWith('/qc') ||
-      pathname.startsWith('/loader'))
+      pathname.startsWith('/loader') ||
+      pathname.startsWith('/uploader'))
   ) {
     return NextResponse.redirect(new URL('/login', request.url))
   }

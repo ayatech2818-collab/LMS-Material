@@ -11,7 +11,7 @@ type HierarchyNode = {
   parent_id: string | null;
 };
 
-export function HierarchyColumns({ initialData }: { initialData: HierarchyNode[] }) {
+export function HierarchyColumns({ initialData, readOnly = false, onChapterSelect }: { initialData: HierarchyNode[]; readOnly?: boolean; onChapterSelect?: (chapterId: string, chapterName: string) => void }) {
   const [data, setData] = useState<HierarchyNode[]>(initialData);
   const [loading, setLoading] = useState(false);
 
@@ -104,13 +104,15 @@ export function HierarchyColumns({ initialData }: { initialData: HierarchyNode[]
       <div className={`flex-1 flex flex-col min-w-[240px] bg-[#000] border-r border-[#3c3c3c] h-[560px] ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
         <div className="px-4 py-3 border-b border-[#3c3c3c] flex items-center justify-between bg-[#0d0d0d]">
           <h3 className="text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[2px]">{title}</h3>
-          <button
-            onClick={() => setAddingType(type)}
-            aria-label={`Add ${title}`}
-            className="p-1 text-[#0066b1] hover:bg-[#0066b1]/10 rounded-full transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setAddingType(type)}
+              aria-label={`Add ${title}`}
+              className="p-1 text-[#0066b1] hover:bg-[#0066b1]/10 rounded-full transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -171,20 +173,24 @@ export function HierarchyColumns({ initialData }: { initialData: HierarchyNode[]
                 <span className="text-sm tracking-wide truncate block flex-1">{item.name}</span>
 
                 <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingId(item.id); setEditName(item.name); }}
-                    aria-label={`Edit ${item.name}`}
-                    className={`p-1 ${isSelected ? 'hover:bg-black/20' : 'hover:bg-[#262626]'} transition-colors`}
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                    aria-label={`Delete ${item.name}`}
-                    className={`p-1 transition-colors ${isSelected ? 'hover:bg-[#e22718]/30 hover:text-[#e22718]' : 'text-[#7e7e7e] hover:text-[#e22718] hover:bg-[#e22718]/10'}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {!readOnly && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingId(item.id); setEditName(item.name); }}
+                        aria-label={`Edit ${item.name}`}
+                        className={`p-1 ${isSelected ? 'hover:bg-black/20' : 'hover:bg-[#262626]'} transition-colors`}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                        aria-label={`Delete ${item.name}`}
+                        className={`p-1 transition-colors ${isSelected ? 'hover:bg-[#e22718]/30 hover:text-[#e22718]' : 'text-[#7e7e7e] hover:text-[#e22718] hover:bg-[#e22718]/10'}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
                   {type !== "chapter" && (
                     <ChevronRight className="h-3.5 w-3.5 ml-0.5 opacity-60" />
                   )}
@@ -209,7 +215,12 @@ export function HierarchyColumns({ initialData }: { initialData: HierarchyNode[]
         {renderColumn("Boards", "board", boards, selectedBoard, (id) => { setSelectedBoard(id); setSelectedClass(null); setSelectedSubject(null); }, null, false)}
         {renderColumn("Classes", "class", classes, selectedClass, (id) => { setSelectedClass(id); setSelectedSubject(null); }, selectedBoard, !selectedBoard)}
         {renderColumn("Subjects", "subject", subjects, selectedSubject, (id) => { setSelectedSubject(id); }, selectedClass, !selectedClass)}
-        {renderColumn("Chapters", "chapter", chapters, null, () => {}, selectedSubject, !selectedSubject)}
+        {renderColumn("Chapters", "chapter", chapters, null, (id) => {
+          if (onChapterSelect) {
+            const ch = data.find(d => d.id === id);
+            onChapterSelect(id, ch?.name || "Untitled");
+          }
+        }, selectedSubject, !selectedSubject)}
       </div>
     </div>
   );

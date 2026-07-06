@@ -142,3 +142,75 @@ CREATE TABLE public.task_history (
 -- Storage buckets
 INSERT INTO storage.buckets (id, name, public) VALUES ('scripts', 'scripts', false) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true) ON CONFLICT DO NOTHING;
+
+-- Dashboard aggregation RPCs — computed in the DB so the API returns only small summary
+-- result sets (see sql/aggregation-rpcs.sql, kept in sync). This keeps every dashboard
+-- count accurate at any scale, independent of the PostgREST 1000-row cap.
+create or replace function public.get_completed_task_counts()
+returns table (user_id uuid, completed int)
+language sql stable security definer set search_path = public as $$
+  select uid, count(*)::int from (
+    select distinct h.changed_by as uid, h.task_id
+    from task_history h
+    where h.action = 'submitted'
+      and not exists (select 1 from task_assignments a
+                      where a.user_id = h.changed_by and a.task_id = h.task_id)
+    union
+    select distinct h.changed_by, h.task_id
+    from task_history h
+    where h.action in ('qc_approved_script', 'qc_approved_video')
+  ) t group by uid;
+$$;
+
+create or replace function public.get_loader_stats(p_user_id uuid)
+returns table (total_submissions int, completed int)
+language sql stable security definer set search_path = public as $$
+  select
+    count(distinct h.task_id)::int,
+    count(distinct h.task_id) filter (
+      where not exists (select 1 from task_assignments a
+                        where a.user_id = p_user_id and a.task_id = h.task_id))::int
+  from task_history h
+  where h.changed_by = p_user_id and h.action = 'submitted';
+$$;
+
+create or replace function public.get_task_status_counts()
+returns table (status text, count int)
+language sql stable security definer set search_path = public as $$
+  select current_status::text, count(*)::int from tasks group by current_status;
+$$;
+
+create or replace function public.get_assignment_counts()
+returns table (user_id uuid, count int)
+language sql stable security definer set search_path = public as $$
+  select user_id, count(*)::int from task_assignments group by user_id;
+$$;
+
+create or replace function public.get_qc_review_counts(
+  p_user_id uuid, p_from timestamptz default null, p_to timestamptz default null)
+returns table (approved int, rejected int)
+language sql stable security definer set search_path = public as $$
+  select
+    count(distinct h.task_id) filter (where h.action in ('qc_approved_script', 'qc_approved_video'))::int,
+    count(distinct h.task_id) filter (where h.action in ('qc_rejected_script', 'qc_rejected_video'))::int
+  from task_history h
+  where h.changed_by = p_user_id
+    and (p_from is null or h.created_at >= p_from)
+    and (p_to   is null or h.created_at <= p_to);
+$$;
+
+revoke execute on function
+  public.get_completed_task_counts(),
+  public.get_loader_stats(uuid),
+  public.get_task_status_counts(),
+  public.get_assignment_counts(),
+  public.get_qc_review_counts(uuid, timestamptz, timestamptz)
+  from public, anon, authenticated;
+
+grant execute on function
+  public.get_completed_task_counts(),
+  public.get_loader_stats(uuid),
+  public.get_task_status_counts(),
+  public.get_assignment_counts(),
+  public.get_qc_review_counts(uuid, timestamptz, timestamptz)
+  to service_role;

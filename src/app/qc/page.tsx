@@ -26,33 +26,13 @@ export default async function QCDashboard({
     .select("*", { count: "exact", head: true })
     .in("current_status", ["script_generated", "video_edited"]);
 
-  let approvedQuery = adminSupabase
-    .from("task_history")
-    .select("task_id")
-    .eq("changed_by", user?.id)
-    .in("action", ["qc_approved_script", "qc_approved_video"]);
-  if (fromDate) approvedQuery = approvedQuery.gte("created_at", fromDate.toISOString());
-  if (toDate) approvedQuery = approvedQuery.lte("created_at", toDate.toISOString());
-  const { data: approvedHistory } = await approvedQuery;
-  const approvedTaskIds: Record<string, boolean> = {};
-  approvedHistory?.forEach(h => {
-    if (h.task_id) approvedTaskIds[h.task_id] = true;
+  const { data: reviewCounts } = await adminSupabase.rpc("get_qc_review_counts", {
+    p_user_id: user?.id,
+    p_from: fromDate ? fromDate.toISOString() : null,
+    p_to: toDate ? toDate.toISOString() : null,
   });
-  const myApproved = Object.keys(approvedTaskIds).length;
-
-  let rejectedQuery = adminSupabase
-    .from("task_history")
-    .select("task_id")
-    .eq("changed_by", user?.id)
-    .in("action", ["qc_rejected_script", "qc_rejected_video"]);
-  if (fromDate) rejectedQuery = rejectedQuery.gte("created_at", fromDate.toISOString());
-  if (toDate) rejectedQuery = rejectedQuery.lte("created_at", toDate.toISOString());
-  const { data: rejectedHistory } = await rejectedQuery;
-  const rejectedTaskIds: Record<string, boolean> = {};
-  rejectedHistory?.forEach(h => {
-    if (h.task_id) rejectedTaskIds[h.task_id] = true;
-  });
-  const myRejected = Object.keys(rejectedTaskIds).length;
+  const myApproved = reviewCounts?.[0]?.approved ?? 0;
+  const myRejected = reviewCounts?.[0]?.rejected ?? 0;
 
   const { data: pendingTasks } = await adminSupabase
     .from("tasks")

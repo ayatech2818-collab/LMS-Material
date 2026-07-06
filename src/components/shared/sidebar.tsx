@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Users, Layers, LayoutList, LogOut, BarChart3, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Layers, LayoutList, LogOut, BarChart3, Menu, X, Upload, Film } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { useLoading } from "@/context/loading-context";
 
-export function Sidebar({ role }: { role: "admin" | "qc" | "loader" }) {
+export function Sidebar({ role }: { role: "admin" | "qc" | "loader" | "uploader" }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -31,9 +31,13 @@ export function Sidebar({ role }: { role: "admin" | "qc" | "loader" }) {
   ] : role === "qc" ? [
     { name: "QC Dashboard", href: "/qc", icon: LayoutDashboard },
     { name: "QC Kanban", href: "/qc/kanban", icon: LayoutList },
-  ] : [
+  ] : role === "loader" ? [
     { name: "Dashboard", href: "/loader", icon: LayoutDashboard },
     { name: "My History", href: "/loader/history", icon: BarChart3 },
+  ] : [
+    { name: "Dashboard", href: "/uploader", icon: LayoutDashboard },
+    { name: "Upload Video", href: "/uploader/upload", icon: Upload },
+    { name: "My Uploads", href: "/uploader/uploads", icon: Film },
   ];
 
   const NavContent = () => (
