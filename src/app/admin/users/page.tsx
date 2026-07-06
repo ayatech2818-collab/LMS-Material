@@ -15,6 +15,20 @@ export default async function UsersPage() {
     .select("*, task_assignments(id)")
     .order("created_at", { ascending: false });
 
+  const { data: history } = await supabase
+    .from("task_history")
+    .select("changed_by, action")
+    .in("action", ["submitted", "qc_approved_script", "qc_approved_video"]);
+
+  const completedCounts = new Map<string, number>();
+  if (history) {
+    history.forEach(h => {
+      if (h.changed_by) {
+        completedCounts.set(h.changed_by, (completedCounts.get(h.changed_by) || 0) + 1);
+      }
+    });
+  }
+
   return (
     <>
       <Header title="User Management" />
@@ -38,7 +52,7 @@ export default async function UsersPage() {
                   <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] hidden lg:table-cell">Password</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Role</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] hidden xl:table-cell">Sub Role</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] text-center">Tasks</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] text-center">Tasks Done</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px]">Status</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-[#7e7e7e] uppercase tracking-[1.5px] text-right">Actions</th>
                 </tr>
@@ -71,7 +85,7 @@ export default async function UsersPage() {
                       {profile.sub_role ? profile.sub_role.replace(/_/g, ' ') : '-'}
                     </td>
                     <td className="px-4 py-4 text-center text-[#e6e6e6] font-bold text-sm">
-                      {profile.task_assignments?.length || 0}
+                      {completedCounts.get(profile.id) || 0}
                     </td>
                     <td className="px-4 py-4">
                       {profile.is_active ? (
