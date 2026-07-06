@@ -47,15 +47,28 @@ export default async function LoaderDashboardPage() {
   });
   const allTasks = Array.from(allTasksMap.values());
 
-  const { count: totalSubmissions } = await adminClient
+  const { data: historyItems } = await adminClient
     .from("task_history")
-    .select("*", { count: "exact", head: true })
+    .select("task_id, action")
     .eq("changed_by", user?.id)
     .eq("action", "submitted");
 
+  const submittedUniqueTaskIds = new Set<string>();
+  historyItems?.forEach(h => {
+    submittedUniqueTaskIds.add(h.task_id);
+  });
+
   const totalAssigned = allTasks.filter((t) => t.current_status !== "final_approved").length;
   const revisionsCount = allTasks.filter((t) => t.current_status === "needs_revision").length;
-  const completedCount = totalSubmissions || 0;
+  const totalSubmissionsUnique = submittedUniqueTaskIds.size;
+  
+  // Completed tasks: Tasks they have submitted at least once, but are no longer actively assigned to them
+  let completedCount = 0;
+  submittedUniqueTaskIds.forEach(taskId => {
+    if (!allTasksMap.has(taskId)) {
+      completedCount++;
+    }
+  });
 
   return (
     <>
@@ -85,7 +98,7 @@ export default async function LoaderDashboardPage() {
         </section>
 
         {/* Stats Row */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Total Assigned</h3>
             <p className="text-[40px] font-light text-white leading-none">{totalAssigned}</p>
@@ -96,6 +109,10 @@ export default async function LoaderDashboardPage() {
           </div>
           <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Total Submissions</h3>
+            <p className="text-[40px] font-light text-[#0066b1] leading-none">{totalSubmissionsUnique}</p>
+          </div>
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
+            <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Completed Tasks</h3>
             <p className="text-[40px] font-light text-[#0fa336] leading-none">{completedCount}</p>
           </div>
         </section>
