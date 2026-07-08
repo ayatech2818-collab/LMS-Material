@@ -62,11 +62,13 @@ export default async function LoaderDashboardPage() {
   if (finalChapterIds.length > 0) {
     const { data: videos } = await adminClient
       .from("video_uploads")
-      .select("hierarchy_id, vimeo_link, status, title")
+      .select("id, hierarchy_id, vimeo_link, status, title, uploaded_by")
       .in("hierarchy_id", finalChapterIds)
       .order("created_at", { ascending: false });
-    (videos || []).forEach((v: ChapterVideo & { hierarchy_id: string }) => {
+    (videos || []).forEach((v) => {
       (chapterVideos[v.hierarchy_id] ||= []).push({
+        id: v.id,
+        uploaded_by: v.uploaded_by,
         vimeo_link: v.vimeo_link,
         status: v.status,
         title: v.title,

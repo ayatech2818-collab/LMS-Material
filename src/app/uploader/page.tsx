@@ -5,6 +5,8 @@ import { CopyLinkButton } from "@/components/uploads/copy-link-button";
 import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
 import { Upload, Film, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { getHierarchies } from "@/app/admin/hierarchy/actions";
+import type { HierarchyNode } from "@/lib/hierarchy";
 
 export const revalidate = 0;
 
@@ -34,27 +36,30 @@ export default async function UploaderDashboard() {
     .select("*", { count: "exact", head: true })
     .eq("status", "available");
 
-  // Recent uploads across everyone.
+  // Recent uploads across everyone — no resource embedding joins to avoid
+  // silent query failures when FK relationships are unresolvable.
   const { data: recentUploads } = await adminClient
     .from("video_uploads")
-    .select(`
-      *,
-      chapter:hierarchies(name),
-      uploader:uploaded_by(full_name)
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(5);
 
-  type RecentUpload = {
-    id: string;
-    title: string | null;
-    status: string;
-    vimeo_link: string | null;
-    uploaded_by: string;
-    chapter: { name: string } | null;
-    uploader: { full_name: string } | null;
-  };
-  const recent = (recentUploads || []) as unknown as RecentUpload[];
+  const uploadIds = (recentUploads || []).map((u) => u.uploaded_by);
+  const [hierarchies, { data: uploaderProfiles }] = await Promise.all([
+    getHierarchies(),
+    uploadIds.length > 0
+      ? adminClient.from("profiles").select("id, full_name").in("id", uploadIds)
+      : { data: [] },
+  ]);
+
+  const hierarchyMap = new Map(
+    (hierarchies || []).map((h: HierarchyNode) => [h.id, h.name])
+  );
+  const uploaderMap = new Map(
+    (uploaderProfiles || []).map((p: { id: string; full_name: string }) => [p.id, p.full_name])
+  );
+
+  const recent = recentUploads || [];
   const isAdmin = profile?.role === "admin";
 
   return (
@@ -136,8 +141,8 @@ export default async function UploaderDashboard() {
                     <div className="min-w-0">
                       <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{upload.title || "Untitled"}</p>
                       <p className="text-xs text-[#7e7e7e]">
-                        {upload.chapter?.name || "Unknown"} • by{" "}
-                        <span className="text-[#0066b1]">{upload.uploader?.full_name || "Unknown"}</span> •{" "}
+                        {hierarchyMap.get(upload.hierarchy_id) || "Unknown"} • by{" "}
+                        <span className="text-[#0066b1]">{uploaderMap.get(upload.uploaded_by) || "Unknown"}</span> •{" "}
                         <span className={`uppercase font-bold ${
                           upload.status === "available" ? "text-[#0fa336]" :
                           upload.status === "error" ? "text-[#e22718]" :

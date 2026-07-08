@@ -475,11 +475,13 @@ function CompletedColumn({
   chapterVideos,
   taskWorkLinks,
   canUpload,
+  userId,
 }: {
   tasks: LoaderTask[];
   chapterVideos: Record<string, ChapterVideo[]>;
   taskWorkLinks: Record<string, string>;
   canUpload: boolean;
+  userId: string;
 }) {
   return (
     <div className="flex flex-col overflow-hidden border bg-[#1a1a1a] border-[#3c3c3c] [border-top:3px_solid_#0fa336]">
@@ -498,6 +500,7 @@ function CompletedColumn({
             videos={(task.chapter_id && chapterVideos[task.chapter_id]) || []}
             workLink={taskWorkLinks[task.id] || null}
             canUpload={canUpload}
+            userId={userId}
           />
         ))}
         {tasks.length === 0 && (
@@ -711,6 +714,7 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole, ch
           chapterVideos={chapterVideos}
           taskWorkLinks={taskWorkLinks}
           canUpload={canUpload}
+          userId={userId}
         />
       </div>
 
