@@ -1,6 +1,7 @@
 import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CopyLinkButton } from "@/components/uploads/copy-link-button";
 import { Upload, Film, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -17,34 +18,41 @@ export default async function UploaderDashboard() {
     .eq("id", user?.id)
     .single();
 
-  // Stats from video_uploads
+  // Platform-wide upload stats (every uploader + loader-published video).
   const { count: totalUploads } = await adminClient
     .from("video_uploads")
-    .select("*", { count: "exact", head: true })
-    .eq("uploaded_by", user?.id);
+    .select("*", { count: "exact", head: true });
 
   const { count: processingCount } = await adminClient
     .from("video_uploads")
     .select("*", { count: "exact", head: true })
-    .eq("uploaded_by", user?.id)
     .in("status", ["uploading", "processing"]);
 
   const { count: availableCount } = await adminClient
     .from("video_uploads")
     .select("*", { count: "exact", head: true })
-    .eq("uploaded_by", user?.id)
     .eq("status", "available");
 
-  // Recent uploads
+  // Recent uploads across everyone.
   const { data: recentUploads } = await adminClient
     .from("video_uploads")
     .select(`
       *,
-      chapter:chapter_id(name)
+      chapter:hierarchies(name),
+      uploader:uploaded_by(full_name)
     `)
-    .eq("uploaded_by", user?.id)
     .order("created_at", { ascending: false })
     .limit(5);
+
+  type RecentUpload = {
+    id: string;
+    title: string | null;
+    status: string;
+    vimeo_link: string | null;
+    chapter: { name: string } | null;
+    uploader: { full_name: string } | null;
+  };
+  const recent = (recentUploads || []) as unknown as RecentUpload[];
 
   return (
     <>
@@ -113,19 +121,20 @@ export default async function UploaderDashboard() {
         <section className="bg-[#1a1a1a] border border-[#3c3c3c] overflow-hidden">
           <div className="px-5 md:px-6 py-4 border-b border-[#3c3c3c] flex justify-between items-center bg-[#0d0d0d]">
             <h3 className="text-xs font-bold text-white tracking-[2px] uppercase">Recent Uploads</h3>
-            <Link href="/uploader/uploads" className="text-xs font-bold text-[#0066b1] hover:text-[#1c69d4] tracking-[1px] uppercase transition-colors">
+            <Link href="/uploader/upload" className="text-xs font-bold text-[#0066b1] hover:text-[#1c69d4] tracking-[1px] uppercase transition-colors">
               View All →
             </Link>
           </div>
           <div>
-            {recentUploads && recentUploads.length > 0 ? (
+            {recent.length > 0 ? (
               <ul className="divide-y divide-[#3c3c3c]">
-                {recentUploads.map((upload: any) => (
+                {recent.map((upload) => (
                   <li key={upload.id} className="px-5 md:px-6 py-4 hover:bg-[#262626] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{upload.title || "Untitled"}</p>
                       <p className="text-xs text-[#7e7e7e]">
-                        Chapter: {upload.chapter?.name || "Unknown"} •{" "}
+                        {upload.chapter?.name || "Unknown"} • by{" "}
+                        <span className="text-[#0066b1]">{upload.uploader?.full_name || "Unknown"}</span> •{" "}
                         <span className={`uppercase font-bold ${
                           upload.status === "available" ? "text-[#0fa336]" :
                           upload.status === "error" ? "text-[#e22718]" :
@@ -133,16 +142,19 @@ export default async function UploaderDashboard() {
                         }`}>{upload.status}</span>
                       </p>
                     </div>
-                    {upload.vimeo_link && (
-                      <a
-                        href={upload.vimeo_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
-                      >
-                        View on Vimeo
-                      </a>
-                    )}
+                    <div className="flex gap-2 shrink-0">
+                      {upload.vimeo_link && (
+                        <a
+                          href={upload.vimeo_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
+                        >
+                          View on Vimeo
+                        </a>
+                      )}
+                      <CopyLinkButton link={upload.vimeo_link} />
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,7 @@
 import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { LoaderBoard, type LoaderTask } from "@/components/loader/loader-board";
+import { LoaderBoard, type LoaderTask, type ChapterVideo } from "@/components/loader/loader-board";
 import { formatSubRole } from "@/lib/utils";
 import { getLoaderStatsForUser } from "@/lib/task-stats";
 
@@ -25,7 +25,7 @@ export default async function LoaderDashboardPage() {
       task_id, stage,
       tasks (
         id, current_status, revision_target_status, created_at,
-        title,
+        title, chapter_id,
         board:board_id(name),
         class:class_id(name),
         subject:subject_id(name),
@@ -47,6 +47,56 @@ export default async function LoaderDashboardPage() {
     }
   });
   const allTasks = Object.values(allTasksMap);
+
+  // Videos already published to the chapters of this loader's final-approved tasks, so each
+  // completed card can surface (and copy) its Vimeo link, not just at the moment of upload.
+  const finalChapterIds = Array.from(
+    new Set(
+      allTasks
+        .filter((t) => t.current_status === "final_approved" && t.chapter_id)
+        .map((t) => t.chapter_id as string)
+    )
+  );
+
+  const chapterVideos: Record<string, ChapterVideo[]> = {};
+  if (finalChapterIds.length > 0) {
+    const { data: videos } = await adminClient
+      .from("video_uploads")
+      .select("hierarchy_id, vimeo_link, status, title")
+      .in("hierarchy_id", finalChapterIds)
+      .order("created_at", { ascending: false });
+    (videos || []).forEach((v: ChapterVideo & { hierarchy_id: string }) => {
+      (chapterVideos[v.hierarchy_id] ||= []).push({
+        vimeo_link: v.vimeo_link,
+        status: v.status,
+        title: v.title,
+      });
+    });
+  }
+
+  // The work link submitted for each finished task (task_history.proof_url) — surfaced on the
+  // card and in the upload modal so the editor has the source material they used for the task.
+  const finalTaskIds = allTasks
+    .filter((t) => t.current_status === "final_approved")
+    .map((t) => t.id);
+
+  const taskWorkLinks: Record<string, string> = {};
+  if (finalTaskIds.length > 0) {
+    const { data: history } = await adminClient
+      .from("task_history")
+      .select("task_id, proof_url, created_at")
+      .in("task_id", finalTaskIds)
+      .not("proof_url", "is", null)
+      .order("created_at", { ascending: false });
+    (history || []).forEach((h: { task_id: string; proof_url: string | null }) => {
+      if (h.proof_url && !taskWorkLinks[h.task_id]) {
+        taskWorkLinks[h.task_id] = h.proof_url;
+      }
+    });
+  }
+
+  // Vimeo publishing is limited to the Video Editor (final production stage) and above (admin).
+  const canUpload = profile?.sub_role === "video_editor" || profile?.role === "admin";
 
   const totalAssigned = allTasks.filter((t) => t.current_status !== "final_approved").length;
   const revisionsCount = allTasks.filter((t) => t.current_status === "needs_revision").length;
@@ -111,6 +161,9 @@ export default async function LoaderDashboardPage() {
             userId={user?.id ?? ""}
             userName={profile?.full_name || "Unknown"}
             subRole={profile?.sub_role || null}
+            chapterVideos={chapterVideos}
+            taskWorkLinks={taskWorkLinks}
+            canUpload={canUpload}
           />
         </section>
       </div>

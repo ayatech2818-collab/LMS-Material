@@ -2,6 +2,10 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// task_history actions that represent a stage actually being completed and handed on.
+// The most recent of these is a task's "latest completed date".
+const COMPLETION_ACTIONS = ["submitted", "qc_approved_script", "qc_approved_video"];
+
 export async function getKanbanTasks() {
   const supabase = createAdminClient();
 
@@ -20,7 +24,9 @@ export async function getKanbanTasks() {
       ),
       task_history(
         proof_url,
-        created_at
+        created_at,
+        action,
+        contributor:changed_by(full_name)
       )
     `)
     .order("created_at", { ascending: false });
@@ -29,7 +35,39 @@ export async function getKanbanTasks() {
     console.error("Error fetching tasks:", error);
     return [];
   }
-  return data;
+
+  // Derive each task's latest completed date + the loaders who worked on it directly from
+  // task_history, so the value updates automatically every time a loader completes a stage
+  // (final-approved tasks have their assignments cleared, so this is the only reliable source).
+  type HistoryRow = {
+    proof_url: string | null;
+    created_at: string;
+    action: string | null;
+    contributor: { full_name: string } | null;
+  };
+
+  return (data ?? []).map((task) => {
+    const history = (task.task_history ?? []) as HistoryRow[];
+
+    let lastCompletedAt: string | null = null;
+    for (const h of history) {
+      if (h.action && COMPLETION_ACTIONS.includes(h.action)) {
+        if (!lastCompletedAt || new Date(h.created_at) > new Date(lastCompletedAt)) {
+          lastCompletedAt = h.created_at;
+        }
+      }
+    }
+
+    const contributors = Array.from(
+      new Set(
+        history
+          .filter((h) => h.action === "submitted" && h.contributor?.full_name)
+          .map((h) => h.contributor!.full_name)
+      )
+    );
+
+    return { ...task, last_completed_at: lastCompletedAt, contributors };
+  });
 }
 
 export async function reorderTaskWithinColumn(_taskId: string, _newOrderPosition: number) {

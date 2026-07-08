@@ -16,7 +16,7 @@ DROP TYPE IF EXISTS hierarchy_type CASCADE;
 -- 1. Create Enums
 
 -- 1. Create Enums
-CREATE TYPE user_role AS ENUM ('admin', 'qc', 'loader');
+CREATE TYPE user_role AS ENUM ('admin', 'qc', 'loader', 'uploader');
 CREATE TYPE user_sub_role AS ENUM (
   'script_writer',
   'video_audio_generator',
@@ -138,6 +138,46 @@ CREATE TABLE public.task_history (
   proof_url       TEXT,
   created_at      TIMESTAMPTZ DEFAULT now()
 );
+
+-- Uploader role: videos uploaded to Vimeo, attached to any level of the hierarchy (board,
+-- class, subject, or chapter — the referenced row's own `type` tells you which).
+CREATE TABLE public.video_uploads (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hierarchy_id  UUID NOT NULL REFERENCES public.hierarchies(id) ON DELETE CASCADE,
+  uploaded_by   UUID NOT NULL REFERENCES public.profiles(id),
+  vimeo_video_id TEXT NOT NULL,
+  vimeo_uri      TEXT NOT NULL,
+  vimeo_link     TEXT,
+  title          TEXT,
+  description    TEXT,
+  status         TEXT DEFAULT 'uploading', -- uploading | processing | available | error
+  file_size      BIGINT,
+  duration       NUMERIC,
+  created_at     TIMESTAMPTZ DEFAULT now(),
+  updated_at     TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.video_uploads ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins have full access to video_uploads"
+ON public.video_uploads FOR ALL
+USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
+
+CREATE POLICY "Uploaders can read own uploads"
+ON public.video_uploads FOR SELECT
+USING ( auth.uid() = uploaded_by );
+
+CREATE POLICY "Uploaders can insert uploads"
+ON public.video_uploads FOR INSERT
+WITH CHECK ( auth.uid() = uploaded_by );
+
+CREATE POLICY "Uploaders can update own uploads"
+ON public.video_uploads FOR UPDATE
+USING ( auth.uid() = uploaded_by );
+
+CREATE POLICY "Uploaders can read hierarchies"
+ON public.hierarchies FOR SELECT
+USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'uploader' );
 
 -- Storage buckets
 INSERT INTO storage.buckets (id, name, public) VALUES ('scripts', 'scripts', false) ON CONFLICT DO NOTHING;

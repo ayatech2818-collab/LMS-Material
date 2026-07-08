@@ -2,220 +2,89 @@
 
 import { useState, useRef, useCallback } from "react";
 import { HierarchyColumns } from "@/components/admin/hierarchy-columns";
-import { initializeVimeoUpload, finalizeUpload, markUploadError } from "@/app/uploader/upload/actions";
 import { UploadProgress } from "@/components/uploader/upload-progress";
+import { CopyLinkButton } from "@/components/uploads/copy-link-button";
+import { useVimeoUpload } from "@/components/uploads/use-vimeo-upload";
 import { Upload, CheckCircle2, Film } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-type HierarchyNode = {
-  id: string;
-  type: "board" | "class" | "subject" | "chapter";
-  name: string;
-  parent_id: string | null;
-};
-
-type UploadState = {
-  status: "idle" | "uploading" | "finalizing" | "complete" | "error";
-  progress: number;
-  speed: number;
-  fileName: string;
-  fileSize: number;
-  errorMessage?: string;
-  vimeoLink?: string;
-};
+import type { HierarchyNode } from "@/lib/hierarchy";
+import { getBreadcrumb } from "@/lib/hierarchy";
 
 export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
-  const router = useRouter();
-  const [selectedChapter, setSelectedChapter] = useState<{ id: string; name: string } | null>(null);
+  const [selectedNode, setSelectedNode] = useState<HierarchyNode | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [uploadState, setUploadState] = useState<UploadState>({
-    status: "idle",
-    progress: 0,
-    speed: 0,
-    fileName: "",
-    fileSize: 0,
-  });
-  const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleChapterSelect = useCallback((chapterId: string, chapterName: string) => {
-    setSelectedChapter({ id: chapterId, name: chapterName });
-    setTitle(chapterName);
+  const { state, start, cancel, reset } = useVimeoUpload();
+
+  const handleNodeSelect = useCallback((node: HierarchyNode) => {
+    setSelectedNode(node);
+    setTitle(node.name);
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {
       setFile(f);
-      if (!title && selectedChapter) {
-        setTitle(selectedChapter.name);
+      if (!title && selectedNode) {
+        setTitle(selectedNode.name);
       }
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedChapter || !file) return;
-
-    setUploadState({
-      status: "uploading",
-      progress: 0,
-      speed: 0,
-      fileName: file.name,
-      fileSize: file.size,
+  const handleUpload = () => {
+    if (!selectedNode || !file) return;
+    start({
+      file,
+      hierarchyId: selectedNode.id,
+      title: title || selectedNode.name,
+      description: description || undefined,
     });
-
-    // 1. Initialize on server (creates Vimeo video + DB record)
-    const initResult = await initializeVimeoUpload(
-      selectedChapter.id,
-      file.size,
-      title || selectedChapter.name,
-      description || undefined
-    );
-
-    if (initResult.error || !initResult.uploadLink || !initResult.uploadId) {
-      setUploadState(prev => ({
-        ...prev,
-        status: "error",
-        errorMessage: initResult.error || "Failed to initialize upload",
-      }));
-      return;
-    }
-
-    const { uploadLink, uploadId, vimeoLink } = initResult;
-
-    // 2. Upload file directly to Vimeo using TUS protocol
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const chunkSize = 5 * 1024 * 1024; // 5MB chunks
-      let offset = 0;
-      const startTime = Date.now();
-
-      while (offset < file.size) {
-        if (controller.signal.aborted) {
-          await markUploadError(uploadId);
-          return;
-        }
-
-        const end = Math.min(offset + chunkSize, file.size);
-        const chunk = file.slice(offset, end);
-
-        const resp = await fetch(uploadLink, {
-          method: "PATCH",
-          headers: {
-            "Tus-Resumable": "1.0.0",
-            "Upload-Offset": String(offset),
-            "Content-Type": "application/offset+octet-stream",
-          },
-          body: chunk,
-          signal: controller.signal,
-        });
-
-        if (!resp.ok) {
-          throw new Error(`Upload chunk failed: ${resp.status}`);
-        }
-
-        const newOffset = parseInt(resp.headers.get("Upload-Offset") || String(end), 10);
-        offset = newOffset;
-
-        const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? offset / elapsed : 0;
-        const progress = (offset / file.size) * 100;
-
-        setUploadState(prev => ({
-          ...prev,
-          progress,
-          speed,
-        }));
-      }
-
-      // 3. Finalize
-      setUploadState(prev => ({ ...prev, status: "finalizing", progress: 100 }));
-
-      const finalResult = await finalizeUpload(uploadId);
-      if (finalResult.error) {
-        setUploadState(prev => ({
-          ...prev,
-          status: "error",
-          errorMessage: finalResult.error,
-        }));
-        return;
-      }
-
-      setUploadState(prev => ({
-        ...prev,
-        status: "complete",
-        vimeoLink: vimeoLink || undefined,
-      }));
-
-    } catch (err: unknown) {
-      if (controller.signal.aborted) return;
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("Upload error:", msg);
-      await markUploadError(uploadId);
-      setUploadState(prev => ({
-        ...prev,
-        status: "error",
-        errorMessage: msg,
-      }));
-    }
   };
 
   const handleCancel = () => {
-    abortRef.current?.abort();
-    setUploadState({
-      status: "idle",
-      progress: 0,
-      speed: 0,
-      fileName: "",
-      fileSize: 0,
-    });
+    cancel();
   };
 
   const handleReset = () => {
     setFile(null);
-    setTitle(selectedChapter?.name || "");
+    setTitle(selectedNode?.name || "");
     setDescription("");
-    setUploadState({
-      status: "idle",
-      progress: 0,
-      speed: 0,
-      fileName: "",
-      fileSize: 0,
-    });
+    reset();
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const isIdle = state.status === "idle";
 
   return (
     <div className="space-y-8">
       {/* Step 1: Hierarchy Picker */}
       <section>
         <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-2">
-          Step 1 — Select Chapter
+          Step 1 — Select Where to Upload
         </h2>
         <p className="text-[#bbbbbb] text-sm mb-4">
-          Navigate to the exact chapter you want to upload a video for.
+          Navigate the hierarchy and click the upload icon on a Board, Class, Subject, or
+          Chapter to attach a video there.
         </p>
         <HierarchyColumns
           initialData={hierarchies}
           readOnly
-          onChapterSelect={handleChapterSelect}
+          onSelectNode={handleNodeSelect}
         />
-        {selectedChapter && (
+        {selectedNode && (
           <div className="mt-3 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-[#0fa336]" />
             <span className="text-sm text-[#0fa336] font-bold uppercase tracking-[1px]">
-              Selected: {selectedChapter.name}
+              Selected: {getBreadcrumb(selectedNode.id, hierarchies)}
             </span>
           </div>
         )}
       </section>
 
-      {/* Step 2: Upload Form (only visible after chapter selection) */}
-      {selectedChapter && (
+      {/* Step 2: Upload Form (only visible after a node is selected) */}
+      {selectedNode && (
         <section className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 md:p-8 space-y-6">
           <div>
             <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-1">
@@ -235,7 +104,7 @@ export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter video title"
               className="w-full bg-[#0d0d0d] border border-[#3c3c3c] px-4 py-2.5 outline-none focus:border-[#0066b1] text-[#e6e6e6] placeholder:text-[#7e7e7e] text-sm"
-              disabled={uploadState.status !== "idle"}
+              disabled={!isIdle}
             />
           </div>
 
@@ -250,7 +119,7 @@ export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
               placeholder="Enter video description..."
               rows={3}
               className="w-full bg-[#0d0d0d] border border-[#3c3c3c] px-4 py-2.5 outline-none focus:border-[#0066b1] text-[#e6e6e6] placeholder:text-[#7e7e7e] text-sm resize-none"
-              disabled={uploadState.status !== "idle"}
+              disabled={!isIdle}
             />
           </div>
 
@@ -264,7 +133,7 @@ export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
                 accept="video/*"
                 onChange={handleFileChange}
                 className="w-full bg-[#0d0d0d] border border-[#3c3c3c] px-4 py-2.5 text-[#e6e6e6] text-sm file:mr-4 file:py-1 file:px-3 file:border file:border-[#3c3c3c] file:text-[10px] file:font-bold file:uppercase file:tracking-[1px] file:bg-[#262626] file:text-[#e6e6e6] file:cursor-pointer hover:file:bg-[#3c3c3c] file:transition-colors"
-                disabled={uploadState.status !== "idle"}
+                disabled={!isIdle}
               />
             </div>
             {file && (
@@ -275,36 +144,57 @@ export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
           </div>
 
           {/* Upload Progress or Upload Button */}
-          {uploadState.status !== "idle" ? (
+          {!isIdle ? (
             <div className="space-y-4">
               <UploadProgress
-                fileName={uploadState.fileName}
-                fileSize={uploadState.fileSize}
-                progress={uploadState.progress}
-                speed={uploadState.speed}
+                fileName={state.fileName}
+                fileSize={state.fileSize}
+                progress={state.progress}
+                speed={state.speed}
                 onCancel={handleCancel}
-                status={uploadState.status === "finalizing" ? "finalizing" : uploadState.status === "complete" ? "complete" : uploadState.status === "error" ? "error" : "uploading"}
-                errorMessage={uploadState.errorMessage}
+                status={
+                  state.status === "finalizing"
+                    ? "finalizing"
+                    : state.status === "complete"
+                    ? "complete"
+                    : state.status === "error"
+                    ? "error"
+                    : "uploading"
+                }
+                errorMessage={state.errorMessage}
               />
-              {uploadState.status === "complete" && (
-                <div className="flex gap-3">
-                  {uploadState.vimeoLink && (
-                    <a
-                      href={uploadState.vimeoLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-m flex items-center gap-2"
-                    >
-                      <Film className="h-4 w-4" />
-                      View on Vimeo
-                    </a>
+              {state.status === "complete" && (
+                <>
+                  {state.vimeoLink && (
+                    <div className="bg-[#0d0d0d] border border-[#3c3c3c] p-3 flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={state.vimeoLink}
+                        className="flex-1 bg-transparent text-xs text-[#e6e6e6] outline-none truncate"
+                        aria-label="Vimeo link"
+                      />
+                      <CopyLinkButton link={state.vimeoLink} />
+                    </div>
                   )}
-                  <button onClick={handleReset} className="px-6 py-3 border border-[#3c3c3c] text-[#bbbbbb] font-bold text-xs tracking-[1.5px] uppercase hover:bg-[#262626] transition-colors">
-                    Upload Another
-                  </button>
-                </div>
+                  <div className="flex gap-3">
+                    {state.vimeoLink && (
+                      <a
+                        href={state.vimeoLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-m flex items-center gap-2"
+                      >
+                        <Film className="h-4 w-4" />
+                        View on Vimeo
+                      </a>
+                    )}
+                    <button onClick={handleReset} className="px-6 py-3 border border-[#3c3c3c] text-[#bbbbbb] font-bold text-xs tracking-[1.5px] uppercase hover:bg-[#262626] transition-colors">
+                      Upload Another
+                    </button>
+                  </div>
+                </>
               )}
-              {uploadState.status === "error" && (
+              {state.status === "error" && (
                 <button onClick={handleReset} className="px-6 py-3 border border-[#3c3c3c] text-[#bbbbbb] font-bold text-xs tracking-[1.5px] uppercase hover:bg-[#262626] transition-colors">
                   Try Again
                 </button>

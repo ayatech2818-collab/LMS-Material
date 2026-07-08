@@ -9,9 +9,10 @@ const VIMEO_API_BASE = "https://api.vimeo.com";
 /**
  * Initialize a Vimeo TUS upload.
  * Creates the video object on Vimeo and returns the upload_link for direct browser upload.
+ * hierarchyId can point to a board, class, subject, or chapter row — attachment is level-agnostic.
  */
 export async function initializeVimeoUpload(
-  chapterId: string,
+  hierarchyId: string,
   fileSize: number,
   title: string,
   description?: string
@@ -19,6 +20,23 @@ export async function initializeVimeoUpload(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  // Only the dedicated Video Uploader, an admin, or a Material Loader who is a Video Editor
+  // (the final stage that actually produces the finished video) may publish to Vimeo.
+  const authClient = createAdminClient();
+  const { data: uploaderProfile } = await authClient
+    .from("profiles")
+    .select("role, sub_role")
+    .eq("id", user.id)
+    .single();
+
+  const allowed =
+    uploaderProfile?.role === "admin" ||
+    uploaderProfile?.role === "uploader" ||
+    (uploaderProfile?.role === "loader" && uploaderProfile?.sub_role === "video_editor");
+  if (!allowed) {
+    return { error: "Forbidden: only a Video Editor (or an uploader/admin) can upload videos." };
+  }
 
   const token = process.env.VIMEO_ACCESS_TOKEN;
   if (!token) return { error: "Vimeo access token not configured" };
@@ -63,7 +81,7 @@ export async function initializeVimeoUpload(
     const { data: upload, error: dbError } = await adminClient
       .from("video_uploads")
       .insert({
-        chapter_id: chapterId,
+        hierarchy_id: hierarchyId,
         uploaded_by: user.id,
         vimeo_video_id: vimeoVideoId,
         vimeo_uri: vimeoUri,
@@ -112,7 +130,8 @@ export async function finalizeUpload(uploadId: string) {
   if (error) return { error: error.message };
 
   revalidatePath("/uploader");
-  revalidatePath("/uploader/uploads");
+  revalidatePath("/uploader/upload");
+  revalidatePath("/admin/uploads");
   return { success: true };
 }
 

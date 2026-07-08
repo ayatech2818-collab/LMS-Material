@@ -2,16 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createHierarchy, deleteHierarchy, updateHierarchy } from "@/app/admin/hierarchy/actions";
-import { Plus, Edit2, Trash2, ChevronRight, Check, X } from "lucide-react";
+import { Plus, Edit2, Trash2, ChevronRight, Check, X, Upload } from "lucide-react";
+import type { HierarchyNode } from "@/lib/hierarchy";
 
-type HierarchyNode = {
-  id: string;
-  type: "board" | "class" | "subject" | "chapter";
-  name: string;
-  parent_id: string | null;
-};
-
-export function HierarchyColumns({ initialData, readOnly = false, onChapterSelect }: { initialData: HierarchyNode[]; readOnly?: boolean; onChapterSelect?: (chapterId: string, chapterName: string) => void }) {
+export function HierarchyColumns({ initialData, readOnly = false, onSelectNode, onNavigate }: { initialData: HierarchyNode[]; readOnly?: boolean; onSelectNode?: (node: HierarchyNode) => void; onNavigate?: (node: HierarchyNode) => void }) {
   const [data, setData] = useState<HierarchyNode[]>(initialData);
   const [loading, setLoading] = useState(false);
 
@@ -27,6 +21,11 @@ export function HierarchyColumns({ initialData, readOnly = false, onChapterSelec
   const [editName, setEditName] = useState("");
   const [addingType, setAddingType] = useState<"board" | "class" | "subject" | "chapter" | null>(null);
   const [newName, setNewName] = useState("");
+
+  const navigate = (id: string) => {
+    const node = data.find(d => d.id === id);
+    if (node) onNavigate?.(node);
+  };
 
   const boards = data.filter(d => d.type === "board");
   const classes = data.filter(d => d.type === "class" && d.parent_id === selectedBoard);
@@ -191,6 +190,15 @@ export function HierarchyColumns({ initialData, readOnly = false, onChapterSelec
                       </button>
                     </>
                   )}
+                  {onSelectNode && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSelectNode(item); }}
+                      aria-label={`Upload video to ${item.name}`}
+                      className={`p-1 transition-colors ${isSelected ? 'hover:bg-black/20' : 'text-[#7e7e7e] hover:text-[#0fa336] hover:bg-[#0fa336]/10'}`}
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {type !== "chapter" && (
                     <ChevronRight className="h-3.5 w-3.5 ml-0.5 opacity-60" />
                   )}
@@ -212,15 +220,10 @@ export function HierarchyColumns({ initialData, readOnly = false, onChapterSelec
   return (
     <div className="w-full overflow-x-auto pb-6">
       <div className="flex overflow-hidden border border-[#3c3c3c] min-w-max">
-        {renderColumn("Boards", "board", boards, selectedBoard, (id) => { setSelectedBoard(id); setSelectedClass(null); setSelectedSubject(null); }, null, false)}
-        {renderColumn("Classes", "class", classes, selectedClass, (id) => { setSelectedClass(id); setSelectedSubject(null); }, selectedBoard, !selectedBoard)}
-        {renderColumn("Subjects", "subject", subjects, selectedSubject, (id) => { setSelectedSubject(id); }, selectedClass, !selectedClass)}
-        {renderColumn("Chapters", "chapter", chapters, null, (id) => {
-          if (onChapterSelect) {
-            const ch = data.find(d => d.id === id);
-            onChapterSelect(id, ch?.name || "Untitled");
-          }
-        }, selectedSubject, !selectedSubject)}
+        {renderColumn("Boards", "board", boards, selectedBoard, (id) => { setSelectedBoard(id); setSelectedClass(null); setSelectedSubject(null); navigate(id); }, null, false)}
+        {renderColumn("Classes", "class", classes, selectedClass, (id) => { setSelectedClass(id); setSelectedSubject(null); navigate(id); }, selectedBoard, !selectedBoard)}
+        {renderColumn("Subjects", "subject", subjects, selectedSubject, (id) => { setSelectedSubject(id); navigate(id); }, selectedClass, !selectedClass)}
+        {renderColumn("Chapters", "chapter", chapters, null, (id) => { navigate(id); }, selectedSubject, !selectedSubject)}
       </div>
     </div>
   );

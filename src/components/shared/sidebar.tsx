@@ -28,6 +28,7 @@ export function Sidebar({ role }: { role: "admin" | "qc" | "loader" | "uploader"
     { name: "User Management", href: "/admin/users", icon: Users },
     { name: "Hierarchy Setup", href: "/admin/hierarchy", icon: Layers },
     { name: "Master Kanban", href: "/admin/kanban", icon: LayoutList },
+    { name: "Uploads", href: "/admin/uploads", icon: Film },
   ] : role === "qc" ? [
     { name: "QC Dashboard", href: "/qc", icon: LayoutDashboard },
     { name: "QC Kanban", href: "/qc/kanban", icon: LayoutList },
@@ -36,8 +37,7 @@ export function Sidebar({ role }: { role: "admin" | "qc" | "loader" | "uploader"
     { name: "My History", href: "/loader/history", icon: BarChart3 },
   ] : [
     { name: "Dashboard", href: "/uploader", icon: LayoutDashboard },
-    { name: "Upload Video", href: "/uploader/upload", icon: Upload },
-    { name: "My Uploads", href: "/uploader/uploads", icon: Film },
+    { name: "Upload & Videos", href: "/uploader/upload", icon: Upload },
   ];
 
   const NavContent = () => (

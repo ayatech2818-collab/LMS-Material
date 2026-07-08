@@ -24,6 +24,7 @@ export function Header({ title }: { title: string }) {
         if (profile?.role === 'admin') setRole('Administrator');
         if (profile?.role === 'qc') setRole('Quality Control');
         if (profile?.role === 'loader') setRole('Content Loader');
+        if (profile?.role === 'uploader') setRole('Video Uploader');
       }
     };
     fetchUser();
@@ -33,10 +34,14 @@ export function Header({ title }: { title: string }) {
     { label: "Dashboard", href: "/admin" },
     { label: "Master Kanban", href: "/admin/kanban" },
     { label: "Hierarchy", href: "/admin/hierarchy" },
-    { label: "Team Staff", href: "/admin/users" }
+    { label: "Team Staff", href: "/admin/users" },
+    { label: "Uploads", href: "/admin/uploads" }
   ] : role === "Quality Control" ? [
     { label: "Metrics", href: "/qc" },
     { label: "Queue Kanban", href: "/qc/kanban" }
+  ] : role === "Video Uploader" ? [
+    { label: "Dashboard", href: "/uploader" },
+    { label: "Upload & Videos", href: "/uploader/upload" }
   ] : [
     { label: "My Tasks", href: "/loader" }
   ];

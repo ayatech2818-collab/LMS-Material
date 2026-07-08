@@ -38,6 +38,8 @@ type TaskAssignment = {
 type TaskHistory = {
   proof_url: string | null;
   created_at: string;
+  action?: string | null;
+  contributor?: { full_name: string } | null;
 };
 
 export type Task = {
@@ -53,6 +55,10 @@ export type Task = {
   hierarchies?: { name: string } | null;
   task_assignments?: TaskAssignment[];
   task_history?: TaskHistory[];
+  /** Most recent stage-completion timestamp, derived from task_history (see getKanbanTasks). */
+  last_completed_at?: string | null;
+  /** Distinct loader names who submitted work on this task (for searching completed tasks). */
+  contributors?: string[];
 };
 
 type LoaderProfile = {
@@ -467,9 +473,15 @@ function SortableTaskCard({
 
         {/* Footer: date + actions */}
         <div className="mt-3 pt-3 border-t border-[#3c3c3c] flex items-center justify-between">
-          <span className="text-[10px] sm:text-[11px] text-[#7e7e7e]" suppressHydrationWarning>
-            {new Date(task.created_at).toLocaleDateString("en-IN", { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
+          {task.current_status === "final_approved" && task.last_completed_at ? (
+            <span className="text-[10px] sm:text-[11px] text-[#0fa336] font-medium" suppressHydrationWarning>
+              Completed {new Date(task.last_completed_at).toLocaleDateString("en-IN", { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          ) : (
+            <span className="text-[10px] sm:text-[11px] text-[#7e7e7e]" suppressHydrationWarning>
+              {new Date(task.created_at).toLocaleDateString("en-IN", { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          )}
           {task.current_status !== "final_approved" && (
             <button
               type="button"
@@ -531,6 +543,147 @@ function DroppableColumn({
           {tasks.length === 0 && (
             <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
               <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">Drop tasks here</span>
+            </div>
+          )}
+        </SortableContext>
+      </div>
+    </div>
+  );
+}
+
+// ── Final Approved Column (search by name/loader + latest-completed-date filter) ──
+
+function FinalApprovedColumn({
+  column,
+  tasks,
+  onAssignTask,
+  onDeleteTask,
+}: {
+  column: typeof COLUMNS[0];
+  tasks: Task[];
+  onAssignTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [showFilters, setShowFilters] = useState(false);
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const filtered = useMemo(() => {
+    let result = tasks;
+
+    const q = search.toLowerCase().trim();
+    if (q) {
+      result = result.filter((t) => {
+        const name = [t.board?.name, t.class?.name, t.subject?.name, t.chapter?.name, t.hierarchies?.name, t.title]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const loaders = (t.contributors ?? []).join(" ").toLowerCase();
+        return name.includes(q) || loaders.includes(q);
+      });
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      result = result.filter((t) => t.last_completed_at && new Date(t.last_completed_at) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter((t) => t.last_completed_at && new Date(t.last_completed_at) <= to);
+    }
+    return result;
+  }, [tasks, search, dateFrom, dateTo]);
+
+  const hasFilter = search.trim() !== "" || dateFrom !== "" || dateTo !== "";
+
+  return (
+    <div
+      className={`w-[85vw] sm:w-[300px] shrink-0 flex flex-col overflow-hidden border transition-all duration-200 ${
+        isOver ? "border-[#0066b1]/50 bg-[#0066b1]/5" : "bg-[#1a1a1a] border-[#3c3c3c]"
+      } ${column.topClass}`}
+    >
+      <div className="border-b border-[#3c3c3c] bg-[#0d0d0d]">
+        <div className="px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center">
+          <h3 className="text-[11px] sm:text-xs font-bold text-white uppercase tracking-[1.5px] truncate">{column.label}</h3>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-label="Search completed tasks"
+              title="Search completed tasks"
+              className={`p-1 border rounded-sm transition-colors ${
+                hasFilter || showFilters
+                  ? "text-[#0066b1] border-[#0066b1]/40 bg-[#0066b1]/10"
+                  : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+              }`}
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+            <span className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 border rounded-sm ${column.countClass}`}>
+              {filtered.length}
+            </span>
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className="px-3 sm:px-4 pb-3 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Name or loader..."
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5" title="Filter by latest completed date">
+              <Calendar className="h-3.5 w-3.5 text-[#7e7e7e] shrink-0" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                title="Completed from date"
+                aria-label="Completed from date"
+                className="flex-1 min-w-0 text-xs border border-[#3c3c3c] px-2 py-1.5 outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
+              />
+              <span className="text-[#7e7e7e] text-[10px] font-bold uppercase">to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                title="Completed to date"
+                aria-label="Completed to date"
+                className="flex-1 min-w-0 text-xs border border-[#3c3c3c] px-2 py-1.5 outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
+              />
+            </div>
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); }}
+                className="flex items-center gap-1.5 text-[10px] font-bold text-[#e22718] hover:bg-[#e22718]/10 px-2 py-1 transition-colors border border-[#e22718]/30 uppercase tracking-[1px]"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div ref={setNodeRef} className="p-3 flex-1 overflow-y-auto w-full min-h-[400px] max-h-[calc(100vh-360px)]">
+        <SortableContext items={filtered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {filtered.map((task) => (
+            <SortableTaskCard key={task.id} task={task} onAssignClick={onAssignTask} onDeleteClick={onDeleteTask} />
+          ))}
+          {filtered.length === 0 && (
+            <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
+              <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
+                {hasFilter ? "No matches" : "Drop tasks here"}
+              </span>
             </div>
           )}
         </SortableContext>
@@ -804,6 +957,21 @@ export function KanbanBoard({ initialTasks, userId }: KanbanBoardProps) {
         >
           <div className="flex gap-4 sm:gap-5 pb-2 pt-2 px-2 sm:px-0 min-w-max h-full">
             {COLUMNS.map(column => {
+              // The Final Approved column has its own search + latest-completed-date filter and
+              // works off the full task set (completed tasks have no assignments, so the global
+              // loader filter would otherwise hide them all).
+              if (column.id === "final_approved") {
+                const finalTasks = tasks.filter(t => getDisplayColumn(t) === "final_approved");
+                return (
+                  <FinalApprovedColumn
+                    key={column.id}
+                    column={column}
+                    tasks={finalTasks}
+                    onAssignTask={setAssigningTask}
+                    onDeleteTask={setDeletingTask}
+                  />
+                );
+              }
               const columnTasks = filteredTasks.filter(t => getDisplayColumn(t) === column.id);
               return (
                 <DroppableColumn
