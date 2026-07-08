@@ -12,13 +12,27 @@ export default async function AdminUploadsPage() {
   const adminClient = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ data: uploads }, hierarchies] = await Promise.all([
+  const [{ data: uploads }, hierarchies, { data: completedTasks }] = await Promise.all([
     adminClient
       .from("video_uploads")
       .select("*, uploader:uploaded_by(full_name)")
       .order("created_at", { ascending: false }),
     getHierarchies(),
+    adminClient
+      .from("tasks")
+      .select("board_id, class_id, subject_id, chapter_id")
+      .eq("current_status", "final_approved"),
   ]);
+
+  // Count completed tasks per hierarchy node. Tasks store redundant ancestry IDs, so a single
+  // query counting final_approved tasks counts every node in the chain: a board's count includes
+  // every completed task under any of its classes, subjects, and chapters.
+  const taskCounts: Record<string, number> = {};
+  for (const t of completedTasks || []) {
+    for (const id of [t.board_id, t.class_id, t.subject_id, t.chapter_id]) {
+      taskCounts[id] = (taskCounts[id] || 0) + 1;
+    }
+  }
 
   const rows = await refreshPendingStatuses((uploads || []) as UploadWithUploader[]);
 
@@ -33,7 +47,7 @@ export default async function AdminUploadsPage() {
           </p>
         </section>
 
-        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin />
+        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin taskCounts={taskCounts} />
       </div>
     </>
   );

@@ -5,7 +5,7 @@ import { createHierarchy, deleteHierarchy, updateHierarchy } from "@/app/admin/h
 import { Plus, Edit2, Trash2, ChevronRight, Check, X, Upload } from "lucide-react";
 import type { HierarchyNode } from "@/lib/hierarchy";
 
-export function HierarchyColumns({ initialData, readOnly = false, onSelectNode, onNavigate }: { initialData: HierarchyNode[]; readOnly?: boolean; onSelectNode?: (node: HierarchyNode) => void; onNavigate?: (node: HierarchyNode) => void }) {
+export function HierarchyColumns({ initialData, readOnly = false, onSelectNode, onNavigate, taskCounts }: { initialData: HierarchyNode[]; readOnly?: boolean; onSelectNode?: (node: HierarchyNode) => void; onNavigate?: (node: HierarchyNode) => void; taskCounts?: Record<string, number> }) {
   const [data, setData] = useState<HierarchyNode[]>(initialData);
   const [loading, setLoading] = useState(false);
 
@@ -97,7 +97,8 @@ export function HierarchyColumns({ initialData, readOnly = false, onSelectNode, 
     selectedId: string | null,
     onSelect: (id: string) => void,
     parentId: string | null,
-    isDisabled: boolean
+    isDisabled: boolean,
+    counts?: Record<string, number>
   ) => {
     return (
       <div className={`flex-1 flex flex-col min-w-[240px] bg-[#000] border-r border-[#3c3c3c] h-[560px] ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
@@ -171,6 +172,16 @@ export function HierarchyColumns({ initialData, readOnly = false, onSelectNode, 
               >
                 <span className="text-sm tracking-wide truncate block flex-1">{item.name}</span>
 
+                {counts && counts[item.id] !== undefined && counts[item.id] > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 leading-none ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-[#0fa336]/10 text-[#0fa336]"
+                  }`}>
+                    {counts[item.id]}
+                  </span>
+                )}
+
                 <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {!readOnly && (
                     <>
@@ -220,10 +231,10 @@ export function HierarchyColumns({ initialData, readOnly = false, onSelectNode, 
   return (
     <div className="w-full overflow-x-auto pb-6">
       <div className="flex overflow-hidden border border-[#3c3c3c] min-w-max">
-        {renderColumn("Boards", "board", boards, selectedBoard, (id) => { setSelectedBoard(id); setSelectedClass(null); setSelectedSubject(null); navigate(id); }, null, false)}
-        {renderColumn("Classes", "class", classes, selectedClass, (id) => { setSelectedClass(id); setSelectedSubject(null); navigate(id); }, selectedBoard, !selectedBoard)}
-        {renderColumn("Subjects", "subject", subjects, selectedSubject, (id) => { setSelectedSubject(id); navigate(id); }, selectedClass, !selectedClass)}
-        {renderColumn("Chapters", "chapter", chapters, null, (id) => { navigate(id); }, selectedSubject, !selectedSubject)}
+        {renderColumn("Boards", "board", boards, selectedBoard, (id) => { setSelectedBoard(id); setSelectedClass(null); setSelectedSubject(null); navigate(id); }, null, false, taskCounts)}
+        {renderColumn("Classes", "class", classes, selectedClass, (id) => { setSelectedClass(id); setSelectedSubject(null); navigate(id); }, selectedBoard, !selectedBoard, taskCounts)}
+        {renderColumn("Subjects", "subject", subjects, selectedSubject, (id) => { setSelectedSubject(id); navigate(id); }, selectedClass, !selectedClass, taskCounts)}
+        {renderColumn("Chapters", "chapter", chapters, null, (id) => { navigate(id); }, selectedSubject, !selectedSubject, taskCounts)}
       </div>
     </div>
   );

@@ -22,11 +22,13 @@ export function UploadsBrowser({
   uploads,
   currentUserId,
   isAdmin = false,
+  taskCounts,
 }: {
   hierarchies: HierarchyNode[];
   uploads: UploadWithUploader[];
   currentUserId: string;
   isAdmin?: boolean;
+  taskCounts?: Record<string, number>;
 }) {
   const router = useRouter();
   const [selectedNode, setSelectedNode] = useState<HierarchyNode | null>(null);
@@ -38,7 +40,7 @@ export function UploadsBrowser({
 
   return (
     <div className="space-y-6">
-      <HierarchyColumns initialData={hierarchies} readOnly onNavigate={setSelectedNode} />
+      <HierarchyColumns initialData={hierarchies} readOnly onNavigate={setSelectedNode} taskCounts={taskCounts} />
 
       <section className="bg-[#1a1a1a] border border-[#3c3c3c] overflow-hidden">
         <div className="px-5 md:px-6 py-4 border-b border-[#3c3c3c] bg-[#0d0d0d]">
