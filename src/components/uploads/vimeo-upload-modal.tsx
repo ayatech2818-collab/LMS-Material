@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, Upload, Film, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
 import { UploadProgress } from "@/components/uploader/upload-progress";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
 import { useVimeoUpload } from "@/components/uploads/use-vimeo-upload";
+import { deleteVideoUpload } from "@/app/uploader/upload/actions";
 
 type VimeoUploadModalProps = {
   /** Hierarchy node the video attaches to (for the kanban this is the task's chapter_id). */
@@ -15,17 +17,33 @@ type VimeoUploadModalProps = {
   defaultTitle?: string;
   /** The work link submitted for the task — the source material to publish. */
   taskWorkLink?: string | null;
+  /** When set, this existing upload is deleted once the new one finishes (re-upload/replace). */
+  replaceUploadId?: string | null;
   onClose: () => void;
 };
 
-export function VimeoUploadModal({ hierarchyId, destinationLabel, defaultTitle, taskWorkLink, onClose }: VimeoUploadModalProps) {
+export function VimeoUploadModal({ hierarchyId, destinationLabel, defaultTitle, taskWorkLink, replaceUploadId, onClose }: VimeoUploadModalProps) {
   const { state, start, cancel, reset } = useVimeoUpload();
   const [title, setTitle] = useState(defaultTitle || destinationLabel || "");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replacedRef = useRef(false);
 
+  const isReplace = !!replaceUploadId;
   const isBusy = state.status === "uploading" || state.status === "finalizing";
+
+  // Replace mode: once the new video is safely uploaded, remove the old one it supersedes.
+  // We only delete after a successful upload so a cancelled/failed re-upload never loses the
+  // original, and guard with a ref so it fires exactly once.
+  useEffect(() => {
+    if (state.status === "complete" && replaceUploadId && !replacedRef.current) {
+      replacedRef.current = true;
+      deleteVideoUpload(replaceUploadId).then((res) => {
+        if (res.error) toast.error(`Uploaded the new video, but removing the old one failed: ${res.error}`);
+      });
+    }
+  }, [state.status, replaceUploadId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] || null);
@@ -59,9 +77,16 @@ export function VimeoUploadModal({ hierarchyId, destinationLabel, defaultTitle, 
           </button>
 
           <div className="mb-6 pr-8">
-            <h2 className="text-base font-bold text-white tracking-[1.5px] uppercase mb-1">Upload to Vimeo</h2>
+            <h2 className="text-base font-bold text-white tracking-[1.5px] uppercase mb-1">
+              {isReplace ? "Re-upload Video" : "Upload to Vimeo"}
+            </h2>
             {destinationLabel && (
               <p className="text-[#7e7e7e] text-xs uppercase tracking-[1px]">{destinationLabel}</p>
+            )}
+            {isReplace && (
+              <p className="text-[#f4b400] text-[10px] uppercase tracking-[1px] mt-1">
+                Replaces the current video once the new one finishes uploading
+              </p>
             )}
           </div>
 
@@ -144,7 +169,7 @@ export function VimeoUploadModal({ hierarchyId, destinationLabel, defaultTitle, 
                 className="btn-m flex items-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
               >
                 <Upload className="h-4 w-4" />
-                Upload to Vimeo
+                {isReplace ? "Upload Replacement" : "Upload to Vimeo"}
               </button>
             </div>
           ) : (

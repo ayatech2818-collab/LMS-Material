@@ -4,25 +4,37 @@ import { useState } from "react";
 import { HierarchyColumns } from "@/components/admin/hierarchy-columns";
 import { getBreadcrumb, type HierarchyNode } from "@/lib/hierarchy";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
-import { Film } from "lucide-react";
+import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
+import { VimeoUploadModal } from "@/components/uploads/vimeo-upload-modal";
+import { RefreshCw, Film } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { UploadWithUploader } from "@/lib/video-uploads";
 
 /**
  * Shared "browse all videos" view used identically by the uploader workspace and the admin
  * uploads page. Navigate the hierarchy; picking any Board/Class/Subject/Chapter lists the
  * videos attached to that exact node — uploaded by anyone. Each row offers a live "View on
- * Vimeo" link and a "Copy Link" button.
+ * Vimeo" link and a "Copy Link" button; the uploader who owns a video (or an admin) also gets
+ * "Re-upload" (replace) and "Delete".
  */
 export function UploadsBrowser({
   hierarchies,
   uploads,
+  currentUserId,
+  isAdmin = false,
 }: {
   hierarchies: HierarchyNode[];
   uploads: UploadWithUploader[];
+  currentUserId: string;
+  isAdmin?: boolean;
 }) {
+  const router = useRouter();
   const [selectedNode, setSelectedNode] = useState<HierarchyNode | null>(null);
+  const [replacing, setReplacing] = useState<UploadWithUploader | null>(null);
 
   const videosHere = selectedNode ? uploads.filter((u) => u.hierarchy_id === selectedNode.id) : [];
+
+  const canManage = (upload: UploadWithUploader) => isAdmin || upload.uploaded_by === currentUserId;
 
   return (
     <div className="space-y-6">
@@ -67,7 +79,7 @@ export function UploadsBrowser({
                     {upload.duration ? ` • ${Math.round(upload.duration)}s` : ""}
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 flex-wrap">
                   {upload.vimeo_link && (
                     <a
                       href={upload.vimeo_link}
@@ -79,6 +91,19 @@ export function UploadsBrowser({
                     </a>
                   )}
                   <CopyLinkButton link={upload.vimeo_link} />
+                  {canManage(upload) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setReplacing(upload)}
+                        className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors flex items-center gap-1.5"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Re-upload
+                      </button>
+                      <DeleteVideoButton uploadId={upload.id} />
+                    </>
+                  )}
                 </div>
               </li>
             ))}
@@ -90,6 +115,19 @@ export function UploadsBrowser({
           </div>
         )}
       </section>
+
+      {replacing && (
+        <VimeoUploadModal
+          hierarchyId={replacing.hierarchy_id}
+          destinationLabel={getBreadcrumb(replacing.hierarchy_id, hierarchies)}
+          defaultTitle={replacing.title || ""}
+          replaceUploadId={replacing.id}
+          onClose={() => {
+            setReplacing(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

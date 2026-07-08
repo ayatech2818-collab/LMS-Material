@@ -153,3 +153,58 @@ export async function markUploadError(uploadId: string) {
   if (error) return { error: error.message };
   return { success: true };
 }
+
+/**
+ * Delete an upload. Allowed for the uploader who owns it or an admin. Removes the video from
+ * Vimeo (best-effort — a Vimeo hiccup or missing delete scope must not strand the DB row) and
+ * then deletes the database record so it disappears from every uploads view.
+ */
+export async function deleteVideoUpload(uploadId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const adminClient = createAdminClient();
+  const { data: upload } = await adminClient
+    .from("video_uploads")
+    .select("uploaded_by, vimeo_video_id")
+    .eq("id", uploadId)
+    .single();
+  if (!upload) return { error: "Upload not found" };
+
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isOwner = upload.uploaded_by === user.id;
+  const isAdmin = profile?.role === "admin";
+  if (!isOwner && !isAdmin) return { error: "Forbidden" };
+
+  // Best-effort removal from Vimeo.
+  const token = process.env.VIMEO_ACCESS_TOKEN;
+  if (token && upload.vimeo_video_id) {
+    try {
+      await fetch(`${VIMEO_API_BASE}/videos/${upload.vimeo_video_id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.vimeo.*+json;version=3.4",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch (err) {
+      console.error(`Vimeo delete failed for ${upload.vimeo_video_id} (continuing):`, err);
+    }
+  }
+
+  const { error } = await adminClient.from("video_uploads").delete().eq("id", uploadId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/uploader");
+  revalidatePath("/uploader/upload");
+  revalidatePath("/admin/uploads");
+  revalidatePath("/loader");
+  return { success: true };
+}

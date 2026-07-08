@@ -1,4 +1,5 @@
 import { Header } from "@/components/shared/header";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHierarchies } from "@/app/admin/hierarchy/actions";
 import { refreshPendingStatuses, type UploadWithUploader } from "@/lib/video-uploads";
@@ -7,7 +8,9 @@ import { UploadsBrowser } from "@/components/uploads/uploads-browser";
 export const revalidate = 0;
 
 export default async function AdminUploadsPage() {
+  const supabase = await createClient();
   const adminClient = createAdminClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   const [{ data: uploads }, hierarchies] = await Promise.all([
     adminClient
@@ -30,7 +33,7 @@ export default async function AdminUploadsPage() {
           </p>
         </section>
 
-        <UploadsBrowser hierarchies={hierarchies} uploads={rows} />
+        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin />
       </div>
     </>
   );

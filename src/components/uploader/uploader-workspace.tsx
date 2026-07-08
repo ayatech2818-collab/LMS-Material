@@ -17,9 +17,13 @@ type Tab = "upload" | "browse";
 export function UploaderWorkspace({
   hierarchies,
   uploads,
+  currentUserId,
+  isAdmin = false,
 }: {
   hierarchies: HierarchyNode[];
   uploads: UploadWithUploader[];
+  currentUserId: string;
+  isAdmin?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("upload");
 
@@ -46,7 +50,7 @@ export function UploaderWorkspace({
       {tab === "upload" ? (
         <UploadForm hierarchies={hierarchies} />
       ) : (
-        <UploadsBrowser hierarchies={hierarchies} uploads={uploads} />
+        <UploadsBrowser hierarchies={hierarchies} uploads={uploads} currentUserId={currentUserId} isAdmin={isAdmin} />
       )}
     </div>
   );

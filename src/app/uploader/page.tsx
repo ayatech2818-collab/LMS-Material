@@ -2,6 +2,7 @@ import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
+import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
 import { Upload, Film, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -49,10 +50,12 @@ export default async function UploaderDashboard() {
     title: string | null;
     status: string;
     vimeo_link: string | null;
+    uploaded_by: string;
     chapter: { name: string } | null;
     uploader: { full_name: string } | null;
   };
   const recent = (recentUploads || []) as unknown as RecentUpload[];
+  const isAdmin = profile?.role === "admin";
 
   return (
     <>
@@ -154,6 +157,9 @@ export default async function UploaderDashboard() {
                         </a>
                       )}
                       <CopyLinkButton link={upload.vimeo_link} />
+                      {(isAdmin || upload.uploaded_by === user?.id) && (
+                        <DeleteVideoButton uploadId={upload.id} />
+                      )}
                     </div>
                   </li>
                 ))}

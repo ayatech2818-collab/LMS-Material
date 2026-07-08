@@ -36,6 +36,7 @@ import { useRouter } from "next/navigation";
 import { SubmitModal } from "@/components/loader/submit-modal";
 import { VimeoUploadModal } from "@/components/uploads/vimeo-upload-modal";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
+import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
 import Link from "next/link";
 
 export type LoaderTask = {
@@ -53,6 +54,8 @@ export type LoaderTask = {
 
 /** A video already published to a task's chapter — surfaced on the Final Approved card. */
 export type ChapterVideo = {
+  id: string;
+  uploaded_by: string;
   vimeo_link: string | null;
   status: string;
   title: string | null;
@@ -272,17 +275,20 @@ function CompletedTaskCard({
   videos,
   workLink,
   canUpload,
+  userId,
 }: {
   task: LoaderTask;
   videos: ChapterVideo[];
   workLink: string | null;
   canUpload: boolean;
+  userId: string;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const router = useRouter();
 
   // Prefer the first available video's link; fall back to the newest one regardless of status.
   const linkedVideo = videos.find((v) => v.status === "available" && v.vimeo_link) || videos.find((v) => v.vimeo_link);
+  const ownsVideo = !!linkedVideo && linkedVideo.uploaded_by === userId;
 
   const handleClose = () => {
     setUploadOpen(false);
