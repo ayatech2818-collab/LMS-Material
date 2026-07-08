@@ -20,7 +20,7 @@ export default async function AdminUploadsPage() {
     getHierarchies(),
     adminClient
       .from("tasks")
-      .select("board_id, class_id, subject_id, chapter_id")
+      .select("id, board_id, class_id, subject_id, chapter_id, current_status, created_at, updated_at")
       .eq("current_status", "final_approved"),
   ]);
 
@@ -31,6 +31,24 @@ export default async function AdminUploadsPage() {
   for (const t of completedTasks || []) {
     for (const id of [t.board_id, t.class_id, t.subject_id, t.chapter_id]) {
       taskCounts[id] = (taskCounts[id] || 0) + 1;
+    }
+  }
+
+  // Build work-link map for completed tasks (latest proof_url per task).
+  const taskIds = (completedTasks || []).map((t) => t.id);
+  const { data: taskHistory } = taskIds.length > 0
+    ? await adminClient
+        .from("task_history")
+        .select("task_id, proof_url, created_at")
+        .in("task_id", taskIds)
+        .not("proof_url", "is", null)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
+  const taskWorkLinks: Record<string, string> = {};
+  for (const h of taskHistory || []) {
+    if (h.proof_url && !taskWorkLinks[h.task_id]) {
+      taskWorkLinks[h.task_id] = h.proof_url;
     }
   }
 
@@ -47,7 +65,7 @@ export default async function AdminUploadsPage() {
           </p>
         </section>
 
-        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin taskCounts={taskCounts} />
+        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin taskCounts={taskCounts} completedTasks={completedTasks || []} taskWorkLinks={taskWorkLinks} />
       </div>
     </>
   );

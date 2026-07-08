@@ -23,18 +23,43 @@ export function UploadsBrowser({
   currentUserId,
   isAdmin = false,
   taskCounts,
+  completedTasks,
+  taskWorkLinks,
 }: {
   hierarchies: HierarchyNode[];
   uploads: UploadWithUploader[];
   currentUserId: string;
   isAdmin?: boolean;
   taskCounts?: Record<string, number>;
+  completedTasks?: Array<{
+    id: string;
+    board_id: string;
+    class_id: string;
+    subject_id: string;
+    chapter_id: string;
+    current_status: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  taskWorkLinks?: Record<string, string>;
 }) {
   const router = useRouter();
   const [selectedNode, setSelectedNode] = useState<HierarchyNode | null>(null);
   const [replacing, setReplacing] = useState<UploadWithUploader | null>(null);
 
   const videosHere = selectedNode ? uploads.filter((u) => u.hierarchy_id === selectedNode.id) : [];
+
+  const tasksHere = selectedNode && completedTasks
+    ? completedTasks.filter((t) => {
+        const map: Record<string, string> = {
+          board: t.board_id,
+          class: t.class_id,
+          subject: t.subject_id,
+          chapter: t.chapter_id,
+        };
+        return map[selectedNode.type] === selectedNode.id;
+      })
+    : [];
 
   const canManage = (upload: UploadWithUploader) => isAdmin || upload.uploaded_by === currentUserId;
 
@@ -117,6 +142,56 @@ export function UploadsBrowser({
           </div>
         )}
       </section>
+
+      {selectedNode && completedTasks && (
+        <section className="bg-[#1a1a1a] border border-[#3c3c3c] overflow-hidden">
+          <div className="px-5 md:px-6 py-4 border-b border-[#3c3c3c] bg-[#0d0d0d]">
+            <h3 className="text-xs font-bold text-white tracking-[2px] uppercase">
+              Completed Tasks ({tasksHere.length})
+            </h3>
+          </div>
+          {tasksHere.length > 0 ? (
+            <ul className="divide-y divide-[#3c3c3c]">
+              {tasksHere.map((task) => (
+                <li
+                  key={task.id}
+                  className="px-5 md:px-6 py-4 hover:bg-[#262626] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">
+                      {getBreadcrumb(task.chapter_id, hierarchies)}
+                    </p>
+                    <p className="text-xs text-[#7e7e7e]">
+                      <span className="uppercase font-bold text-[#0fa336]">
+                        {task.current_status.replace(/_/g, " ")}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0 flex-wrap">
+                    {taskWorkLinks?.[task.id] && (
+                      <>
+                        <a
+                          href={taskWorkLinks[task.id]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
+                        >
+                          Open Task
+                        </a>
+                        <CopyLinkButton link={taskWorkLinks[task.id]} />
+                      </>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-12 text-center text-[#7e7e7e]">
+              <p className="text-sm">No completed tasks for this level.</p>
+            </div>
+          )}
+        </section>
+      )}
 
       {replacing && (
         <VimeoUploadModal
