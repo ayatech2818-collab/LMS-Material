@@ -17,6 +17,79 @@ export type VideoUploadRow = {
 /** A video_uploads row joined with the uploader's display name (uploader:uploaded_by(full_name)). */
 export type UploadWithUploader = VideoUploadRow & { uploader: { full_name: string } | null };
 
+/** A final-approved task, carrying the redundant ancestry IDs used to count/filter by level. */
+export type CompletedTaskRow = {
+  id: string;
+  board_id: string;
+  class_id: string;
+  subject_id: string;
+  chapter_id: string;
+  current_status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UploadsBrowserData = {
+  rows: UploadWithUploader[];
+  taskCounts: Record<string, number>;
+  completedTasks: CompletedTaskRow[];
+  taskWorkLinks: Record<string, string>;
+};
+
+/**
+ * Shared data for the "browse all uploads" view, used identically by the admin uploads page
+ * and the uploader workspace so the two stay in lockstep:
+ *  - `rows`          — every video_uploads row (with uploader name), statuses refreshed.
+ *  - `completedTasks`— all final_approved tasks (with their board/class/subject/chapter IDs).
+ *  - `taskCounts`    — completed-task count per hierarchy node (a board's count rolls up every
+ *                      completed task beneath it, since tasks store the full ancestry).
+ *  - `taskWorkLinks` — latest non-null task_history.proof_url per completed task.
+ */
+export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
+  const adminClient = createAdminClient();
+
+  const [{ data: uploads }, { data: completedTasks }] = await Promise.all([
+    adminClient
+      .from("video_uploads")
+      .select("*, uploader:uploaded_by(full_name)")
+      .order("created_at", { ascending: false }),
+    adminClient
+      .from("tasks")
+      .select("id, board_id, class_id, subject_id, chapter_id, current_status, created_at, updated_at")
+      .eq("current_status", "final_approved"),
+  ]);
+
+  const completed = (completedTasks || []) as CompletedTaskRow[];
+
+  const taskCounts: Record<string, number> = {};
+  for (const t of completed) {
+    for (const id of [t.board_id, t.class_id, t.subject_id, t.chapter_id]) {
+      taskCounts[id] = (taskCounts[id] || 0) + 1;
+    }
+  }
+
+  const taskIds = completed.map((t) => t.id);
+  const { data: taskHistory } = taskIds.length > 0
+    ? await adminClient
+        .from("task_history")
+        .select("task_id, proof_url, created_at")
+        .in("task_id", taskIds)
+        .not("proof_url", "is", null)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
+  const taskWorkLinks: Record<string, string> = {};
+  for (const h of taskHistory || []) {
+    if (h.proof_url && !taskWorkLinks[h.task_id]) {
+      taskWorkLinks[h.task_id] = h.proof_url;
+    }
+  }
+
+  const rows = await refreshPendingStatuses((uploads || []) as UploadWithUploader[]);
+
+  return { rows, taskCounts, completedTasks: completed, taskWorkLinks };
+}
+
 /**
  * For any row still "uploading"/"processing", asks Vimeo for its real current status and
  * duration and persists the result — so "available" always means the video actually finished

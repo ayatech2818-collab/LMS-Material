@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
 import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
-import { Upload, Film, Loader2 } from "lucide-react";
+import { Upload, Film, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { getHierarchies } from "@/app/admin/hierarchy/actions";
 import type { HierarchyNode } from "@/lib/hierarchy";
@@ -35,6 +35,12 @@ export default async function UploaderDashboard() {
     .from("video_uploads")
     .select("*", { count: "exact", head: true })
     .eq("status", "available");
+
+  // Platform-wide completed task count (all final_approved tasks).
+  const { count: completedTasksCount } = await adminClient
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("current_status", "final_approved");
 
   // Recent uploads across everyone — no resource embedding joins to avoid
   // silent query failures when FK relationships are unresolvable.
@@ -93,7 +99,7 @@ export default async function UploaderDashboard() {
         </section>
 
         {/* Stats Row */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <div className="flex justify-between items-start mb-6">
               <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase">Total Uploads</h3>
@@ -122,6 +128,16 @@ export default async function UploaderDashboard() {
               </div>
             </div>
             <p className="text-[40px] font-light text-[#0fa336] leading-none">{availableCount || 0}</p>
+          </div>
+
+          <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
+            <div className="flex justify-between items-start mb-6">
+              <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase">Completed Tasks</h3>
+              <div className="p-2 bg-[#0fa336]/10 border border-[#0fa336]/20">
+                <CheckCircle2 className="h-5 w-5 text-[#0fa336]" />
+              </div>
+            </div>
+            <p className="text-[40px] font-light text-[#0fa336] leading-none">{completedTasksCount || 0}</p>
           </div>
         </section>
 

@@ -5,7 +5,7 @@ import { Upload, Film } from "lucide-react";
 import { UploadForm } from "@/components/uploader/upload-form";
 import { UploadsBrowser } from "@/components/uploads/uploads-browser";
 import type { HierarchyNode } from "@/lib/hierarchy";
-import type { UploadWithUploader } from "@/lib/video-uploads";
+import type { UploadWithUploader, CompletedTaskRow } from "@/lib/video-uploads";
 
 type Tab = "upload" | "browse";
 
@@ -19,11 +19,17 @@ export function UploaderWorkspace({
   uploads,
   currentUserId,
   isAdmin = false,
+  taskCounts,
+  completedTasks,
+  taskWorkLinks,
 }: {
   hierarchies: HierarchyNode[];
   uploads: UploadWithUploader[];
   currentUserId: string;
   isAdmin?: boolean;
+  taskCounts?: Record<string, number>;
+  completedTasks?: CompletedTaskRow[];
+  taskWorkLinks?: Record<string, string>;
 }) {
   const [tab, setTab] = useState<Tab>("upload");
 
@@ -50,7 +56,15 @@ export function UploaderWorkspace({
       {tab === "upload" ? (
         <UploadForm hierarchies={hierarchies} />
       ) : (
-        <UploadsBrowser hierarchies={hierarchies} uploads={uploads} currentUserId={currentUserId} isAdmin={isAdmin} />
+        <UploadsBrowser
+          hierarchies={hierarchies}
+          uploads={uploads}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+          taskCounts={taskCounts}
+          completedTasks={completedTasks}
+          taskWorkLinks={taskWorkLinks}
+        />
       )}
     </div>
   );

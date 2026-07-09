@@ -2,7 +2,7 @@ import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHierarchies } from "@/app/admin/hierarchy/actions";
-import { refreshPendingStatuses, type UploadWithUploader } from "@/lib/video-uploads";
+import { getUploadsBrowserData } from "@/lib/video-uploads";
 import { UploaderWorkspace } from "@/components/uploader/uploader-workspace";
 
 export const revalidate = 0;
@@ -12,16 +12,11 @@ export default async function UploadVideoPage() {
   const adminClient = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ data: uploads }, hierarchies, { data: profile }] = await Promise.all([
-    adminClient
-      .from("video_uploads")
-      .select("*, uploader:uploaded_by(full_name)")
-      .order("created_at", { ascending: false }),
+  const [{ rows, taskCounts, completedTasks, taskWorkLinks }, hierarchies, { data: profile }] = await Promise.all([
+    getUploadsBrowserData(),
     getHierarchies(),
     adminClient.from("profiles").select("role").eq("id", user?.id).single(),
   ]);
-
-  const rows = await refreshPendingStatuses((uploads || []) as UploadWithUploader[]);
 
   return (
     <>
@@ -32,6 +27,9 @@ export default async function UploadVideoPage() {
           uploads={rows}
           currentUserId={user?.id ?? ""}
           isAdmin={profile?.role === "admin"}
+          taskCounts={taskCounts}
+          completedTasks={completedTasks}
+          taskWorkLinks={taskWorkLinks}
         />
       </div>
     </>
