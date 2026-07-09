@@ -34,7 +34,7 @@ export async function getVimeoVideoInfo(vimeoVideoId: string): Promise<VimeoVide
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.vimeo.*+json;version=3.4",
     },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {

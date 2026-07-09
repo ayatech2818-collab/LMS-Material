@@ -113,7 +113,7 @@ export async function initializeVimeoUpload(
 }
 
 /**
- * Finalize an upload: mark the database record as "available".
+ * Finalize an upload: mark the database record as "processing".
  */
 export async function finalizeUpload(uploadId: string) {
   const supabase = await createClient();
@@ -123,7 +123,7 @@ export async function finalizeUpload(uploadId: string) {
   const adminClient = createAdminClient();
   const { error } = await adminClient
     .from("video_uploads")
-    .update({ status: "available", updated_at: new Date().toISOString() })
+    .update({ status: "processing", updated_at: new Date().toISOString() })
     .eq("id", uploadId)
     .eq("uploaded_by", user.id);
 

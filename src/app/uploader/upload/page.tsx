@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getHierarchies } from "@/app/admin/hierarchy/actions";
 import { getUploadsBrowserData } from "@/lib/video-uploads";
 import { UploaderWorkspace } from "@/components/uploader/uploader-workspace";
+import { VimeoStatusRefresher } from "@/components/shared/vimeo-status-refresher";
 
 export const revalidate = 0;
 
@@ -20,6 +21,7 @@ export default async function UploadVideoPage() {
 
   return (
     <>
+      <VimeoStatusRefresher />
       <Header title="Upload & Videos" />
       <div className="max-w-[1920px] mx-auto">
         <UploaderWorkspace

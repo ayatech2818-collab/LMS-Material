@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getHierarchies } from "@/app/admin/hierarchy/actions";
 import { getUploadsBrowserData } from "@/lib/video-uploads";
 import { UploadsBrowser } from "@/components/uploads/uploads-browser";
+import { VimeoStatusRefresher } from "@/components/shared/vimeo-status-refresher";
 
 export const revalidate = 0;
 
@@ -17,6 +18,7 @@ export default async function AdminUploadsPage() {
 
   return (
     <>
+      <VimeoStatusRefresher />
       <Header title="Uploads" />
       <div className="max-w-[1920px] mx-auto">
         <section className="mb-4 mt-2">

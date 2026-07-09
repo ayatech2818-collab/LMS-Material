@@ -85,7 +85,7 @@ export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
     }
   }
 
-  const rows = await refreshPendingStatuses((uploads || []) as UploadWithUploader[]);
+  const rows = (uploads || []) as UploadWithUploader[];
 
   return { rows, taskCounts, completedTasks: completed, taskWorkLinks };
 }
