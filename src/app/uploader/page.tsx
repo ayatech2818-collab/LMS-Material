@@ -1,12 +1,11 @@
 import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CopyLinkButton } from "@/components/uploads/copy-link-button";
-import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
 import { Upload, Film, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { getHierarchies } from "@/app/admin/hierarchy/actions";
-import type { HierarchyNode } from "@/lib/hierarchy";
+import { getBreadcrumb, type HierarchyNode } from "@/lib/hierarchy";
+import { DashboardVideoActions } from "@/components/uploads/dashboard-video-actions";
 
 export const revalidate = 0;
 
@@ -166,22 +165,12 @@ export default async function UploaderDashboard() {
                         }`}>{upload.status}</span>
                       </p>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      {upload.vimeo_link && (
-                        <a
-                          href={upload.vimeo_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
-                        >
-                          View on Vimeo
-                        </a>
-                      )}
-                      <CopyLinkButton link={upload.vimeo_link} />
-                      {(isAdmin || upload.uploaded_by === user?.id) && (
-                        <DeleteVideoButton uploadId={upload.id} />
-                      )}
-                    </div>
+                    <DashboardVideoActions
+                      upload={upload}
+                      hierarchyLabel={getBreadcrumb(upload.hierarchy_id, hierarchies)}
+                      currentUserId={user?.id ?? ""}
+                      isAdmin={isAdmin}
+                    />
                   </li>
                 ))}
               </ul>

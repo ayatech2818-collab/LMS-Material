@@ -107,7 +107,7 @@ export function UploadsBrowser({
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0 flex-wrap">
-                  {upload.vimeo_link && (
+                  {upload.status === "available" && upload.vimeo_link && (
                     <a
                       href={upload.vimeo_link}
                       target="_blank"
@@ -117,17 +117,31 @@ export function UploadsBrowser({
                       View on Vimeo
                     </a>
                   )}
-                  <CopyLinkButton link={upload.vimeo_link} />
+                  {upload.status === "available" && (
+                    <CopyLinkButton link={upload.vimeo_link} />
+                  )}
                   {canManage(upload) && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => setReplacing(upload)}
-                        className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors flex items-center gap-1.5"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        Re-upload
-                      </button>
+                      {upload.status !== "available" && (
+                        <button
+                          type="button"
+                          onClick={() => setReplacing(upload)}
+                          className="shrink-0 px-4 py-2 border border-[#f4b400] text-xs font-bold text-[#f4b400] tracking-[1px] uppercase hover:bg-[#f4b400]/10 transition-colors flex items-center gap-1.5"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Re-upload
+                        </button>
+                      )}
+                      {upload.status === "available" && (
+                        <button
+                          type="button"
+                          onClick={() => setReplacing(upload)}
+                          className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors flex items-center gap-1.5"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Re-upload
+                        </button>
+                      )}
                       <DeleteVideoButton uploadId={upload.id} />
                     </>
                   )}
