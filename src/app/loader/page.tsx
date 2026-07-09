@@ -102,10 +102,13 @@ export default async function LoaderDashboardPage() {
 
   const totalAssigned = allTasks.filter((t) => t.current_status !== "final_approved").length;
   const revisionsCount = allTasks.filter((t) => t.current_status === "needs_revision").length;
+  // Completed = this loader's tasks that reached Final Approved — kept identical to the count
+  // shown in the board's "Final Approved" column (both derive from allTasks).
+  const finalApprovedCount = allTasks.filter((t) => t.current_status === "final_approved").length;
 
-  // Total submissions + completed ("submitted & handed off") from the shared source of
-  // truth, so this matches the admin dashboard and user-management figures exactly.
-  const { totalSubmissions: totalSubmissionsUnique, completed: completedCount } =
+  // Total submissions from the shared source of truth, so this matches the admin dashboard
+  // and user-management figures exactly.
+  const { totalSubmissions: totalSubmissionsUnique } =
     await getLoaderStatsForUser(adminClient, user?.id ?? "");
 
   return (
@@ -151,7 +154,7 @@ export default async function LoaderDashboardPage() {
           </div>
           <div className="bg-[#1a1a1a] border border-[#3c3c3c] p-6 hover:bg-[#262626] transition-colors">
             <h3 className="text-[#7e7e7e] text-xs font-bold tracking-[1.5px] uppercase mb-3">Completed Tasks</h3>
-            <p className="text-[40px] font-light text-[#0fa336] leading-none">{completedCount}</p>
+            <p className="text-[40px] font-light text-[#0fa336] leading-none">{finalApprovedCount}</p>
           </div>
         </section>
 

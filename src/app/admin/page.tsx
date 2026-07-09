@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { BarChart } from "@/components/dashboard/bar-chart";
 import { ProductivityTable } from "@/components/dashboard/productivity-table";
 import { formatSubRole } from "@/lib/utils";
-import { getCompletedTaskCounts } from "@/lib/task-stats";
+import { getCompletedTaskCounts, getFinalApprovedCountsByUser } from "@/lib/task-stats";
 
 export const revalidate = 0;
 
@@ -37,11 +37,19 @@ export default async function AdminDashboardPage() {
     handlesByUser[r.user_id] = r.count;
   });
 
-  const completedCounts = await getCompletedTaskCounts(supabase);
+  // Video editors are credited by finished (final_approved) videos — matching their own
+  // dashboard; everyone else keeps their "completed by them" count (submissions handed off /
+  // QC approvals).
+  const [completedCounts, finalApprovedCounts] = await Promise.all([
+    getCompletedTaskCounts(supabase),
+    getFinalApprovedCountsByUser(supabase),
+  ]);
 
   const productivityData = (users || []).map(u => {
     const handles = handlesByUser[u.id] || 0;
-    const completed = completedCounts[u.id] || 0;
+    const completed = u.sub_role === "video_editor"
+      ? (finalApprovedCounts[u.id] || 0)
+      : (completedCounts[u.id] || 0);
     return {
       fullName: u.full_name,
       role: u.role,

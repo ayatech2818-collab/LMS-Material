@@ -4,7 +4,7 @@ import { AddUserForm } from "@/components/admin/add-user-modal";
 import { UserActionMenu } from "@/components/admin/user-action-menu";
 import { MessageCircle } from "lucide-react";
 import { PasswordCell } from "@/components/admin/password-cell";
-import { getCompletedTaskCounts } from "@/lib/task-stats";
+import { getCompletedTaskCounts, getFinalApprovedCountsByUser } from "@/lib/task-stats";
 
 export const revalidate = 0;
 
@@ -16,7 +16,12 @@ export default async function UsersPage() {
     .select("*, task_assignments(id)")
     .order("created_at", { ascending: false });
 
-  const completedCounts = await getCompletedTaskCounts(supabase);
+  // Video editors are credited by finished (final_approved) videos; everyone else keeps their
+  // own "completed by them" count.
+  const [completedCounts, finalApprovedCounts] = await Promise.all([
+    getCompletedTaskCounts(supabase),
+    getFinalApprovedCountsByUser(supabase),
+  ]);
 
   return (
     <>
@@ -74,7 +79,9 @@ export default async function UsersPage() {
                       {profile.sub_role ? profile.sub_role.replace(/_/g, ' ') : '-'}
                     </td>
                     <td className="px-4 py-4 text-center text-[#e6e6e6] font-bold text-sm">
-                      {completedCounts[profile.id] || 0}
+                      {(profile.sub_role === "video_editor"
+                        ? finalApprovedCounts[profile.id]
+                        : completedCounts[profile.id]) || 0}
                     </td>
                     <td className="px-4 py-4">
                       {profile.is_active ? (

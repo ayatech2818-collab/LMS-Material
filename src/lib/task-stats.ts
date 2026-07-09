@@ -41,6 +41,32 @@ export async function getCompletedTaskCounts(
 }
 
 /**
+ * Per-user "completed" count aligned with each loader's own dashboard: the number of distinct
+ * final_approved tasks the user is assigned to. This deliberately matches the loader dashboard's
+ * "Completed Tasks" tile and the board's "Final Approved" column (both derived from
+ * task_assignments), so a loader and the admin always see the same figure for that loader.
+ */
+export async function getFinalApprovedCountsByUser(
+  supabase: SupabaseClient,
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("task_assignments")
+    .select("user_id, task_id, tasks!inner(current_status)")
+    .eq("tasks.current_status", "final_approved");
+  if (error) {
+    console.error("getFinalApprovedCountsByUser error:", error);
+    return {};
+  }
+  const perUser: Record<string, Set<string>> = {};
+  (data ?? []).forEach((a: { user_id: string; task_id: string }) => {
+    (perUser[a.user_id] ??= new Set()).add(a.task_id);
+  });
+  const counts: Record<string, number> = {};
+  for (const [uid, set] of Object.entries(perUser)) counts[uid] = set.size;
+  return counts;
+}
+
+/**
  * Submission and completed counts for a single loader — used by the loader dashboard.
  * Aggregated in the DB via the `get_loader_stats` RPC.
  */
