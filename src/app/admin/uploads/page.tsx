@@ -11,7 +11,7 @@ export default async function AdminUploadsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ rows, taskCounts, completedTasks, taskWorkLinks }, hierarchies] = await Promise.all([
+  const [{ rows, fileRows, taskCounts, completedTasks, taskWorkLinks }, hierarchies] = await Promise.all([
     getUploadsBrowserData(),
     getHierarchies(),
   ]);
@@ -24,11 +24,11 @@ export default async function AdminUploadsPage() {
         <section className="mb-4 mt-2">
           <h2 className="text-xs font-bold text-[#7e7e7e] tracking-[3px] uppercase mb-1">All Uploads</h2>
           <p className="text-[#bbbbbb] text-sm">
-            Videos uploaded across the platform. Navigate the hierarchy to see the videos attached to any level.
+            Videos and files uploaded across the platform. Navigate the hierarchy to see what is attached to any level.
           </p>
         </section>
 
-        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin taskCounts={taskCounts} completedTasks={completedTasks || []} taskWorkLinks={taskWorkLinks} />
+        <UploadsBrowser hierarchies={hierarchies} uploads={rows} currentUserId={user?.id ?? ""} isAdmin taskCounts={taskCounts} completedTasks={completedTasks || []} taskWorkLinks={taskWorkLinks} files={fileRows} />
       </div>
     </>
   );

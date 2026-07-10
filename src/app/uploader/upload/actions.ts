@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { canUserUpload } from "@/lib/upload-auth";
 import { revalidatePath } from "next/cache";
 
 const VIMEO_API_BASE = "https://api.vimeo.com";
@@ -23,18 +24,7 @@ export async function initializeVimeoUpload(
 
   // Only the dedicated Video Uploader, an admin, or a Material Loader who is a Video Editor
   // (the final stage that actually produces the finished video) may publish to Vimeo.
-  const authClient = createAdminClient();
-  const { data: uploaderProfile } = await authClient
-    .from("profiles")
-    .select("role, sub_role")
-    .eq("id", user.id)
-    .single();
-
-  const allowed =
-    uploaderProfile?.role === "admin" ||
-    uploaderProfile?.role === "uploader" ||
-    (uploaderProfile?.role === "loader" && uploaderProfile?.sub_role === "video_editor");
-  if (!allowed) {
+  if (!(await canUserUpload(user.id))) {
     return { error: "Forbidden: only a Video Editor (or an uploader/admin) can upload videos." };
   }
 

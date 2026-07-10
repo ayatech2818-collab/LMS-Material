@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getVimeoVideoInfo } from "@/lib/vimeo";
+import type { FileUploadWithUploader } from "@/lib/file-uploads";
 
 export type VideoUploadRow = {
   id: string;
@@ -31,6 +32,7 @@ export type CompletedTaskRow = {
 
 export type UploadsBrowserData = {
   rows: UploadWithUploader[];
+  fileRows: FileUploadWithUploader[];
   taskCounts: Record<string, number>;
   completedTasks: CompletedTaskRow[];
   taskWorkLinks: Record<string, string>;
@@ -48,9 +50,13 @@ export type UploadsBrowserData = {
 export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
   const adminClient = createAdminClient();
 
-  const [{ data: uploads }, { data: completedTasks }] = await Promise.all([
+  const [{ data: uploads }, { data: files }, { data: completedTasks }] = await Promise.all([
     adminClient
       .from("video_uploads")
+      .select("*, uploader:uploaded_by(full_name)")
+      .order("created_at", { ascending: false }),
+    adminClient
+      .from("file_uploads")
       .select("*, uploader:uploaded_by(full_name)")
       .order("created_at", { ascending: false }),
     adminClient
@@ -86,8 +92,9 @@ export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
   }
 
   const rows = (uploads || []) as UploadWithUploader[];
+  const fileRows = (files || []) as FileUploadWithUploader[];
 
-  return { rows, taskCounts, completedTasks: completed, taskWorkLinks };
+  return { rows, fileRows, taskCounts, completedTasks: completed, taskWorkLinks };
 }
 
 /**

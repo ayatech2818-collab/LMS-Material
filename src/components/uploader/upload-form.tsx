@@ -5,7 +5,8 @@ import { HierarchyColumns } from "@/components/admin/hierarchy-columns";
 import { UploadProgress } from "@/components/uploader/upload-progress";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
 import { useVimeoUpload } from "@/components/uploads/use-vimeo-upload";
-import { Upload, CheckCircle2, Film } from "lucide-react";
+import { FileUploadModal } from "@/components/uploads/file-upload-modal";
+import { Upload, CheckCircle2, Film, FileText } from "lucide-react";
 import type { HierarchyNode } from "@/lib/hierarchy";
 import { getBreadcrumb } from "@/lib/hierarchy";
 
@@ -14,6 +15,7 @@ export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [fileModalOpen, setFileModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { state, start, cancel, reset } = useVimeoUpload();
@@ -210,7 +212,28 @@ export function UploadForm({ hierarchies }: { hierarchies: HierarchyNode[] }) {
               Upload to Vimeo
             </button>
           )}
+
+          {/* Slides / files — uploaded to S3, viewable + copyable just like the video. */}
+          <div className="pt-4 border-t border-[#3c3c3c]">
+            <button
+              type="button"
+              onClick={() => setFileModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-3 border border-[#3c3c3c] text-[#e6e6e6] font-bold text-xs tracking-[1.5px] uppercase hover:bg-[#262626] transition-colors"
+            >
+              <FileText className="h-4 w-4" />
+              Add File / Upload Slides
+            </button>
+          </div>
         </section>
+      )}
+
+      {fileModalOpen && selectedNode && (
+        <FileUploadModal
+          hierarchyId={selectedNode.id}
+          destinationLabel={getBreadcrumb(selectedNode.id, hierarchies)}
+          defaultTitle={selectedNode.name}
+          onClose={() => setFileModalOpen(false)}
+        />
       )}
     </div>
   );

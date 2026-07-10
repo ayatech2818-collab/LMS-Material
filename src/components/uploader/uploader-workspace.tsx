@@ -6,6 +6,7 @@ import { UploadForm } from "@/components/uploader/upload-form";
 import { UploadsBrowser } from "@/components/uploads/uploads-browser";
 import type { HierarchyNode } from "@/lib/hierarchy";
 import type { UploadWithUploader, CompletedTaskRow } from "@/lib/video-uploads";
+import type { FileUploadWithUploader } from "@/lib/file-uploads";
 
 type Tab = "upload" | "browse";
 
@@ -22,6 +23,7 @@ export function UploaderWorkspace({
   taskCounts,
   completedTasks,
   taskWorkLinks,
+  files,
 }: {
   hierarchies: HierarchyNode[];
   uploads: UploadWithUploader[];
@@ -30,6 +32,7 @@ export function UploaderWorkspace({
   taskCounts?: Record<string, number>;
   completedTasks?: CompletedTaskRow[];
   taskWorkLinks?: Record<string, string>;
+  files?: FileUploadWithUploader[];
 }) {
   const [tab, setTab] = useState<Tab>("upload");
 
@@ -64,6 +67,7 @@ export function UploaderWorkspace({
           taskCounts={taskCounts}
           completedTasks={completedTasks}
           taskWorkLinks={taskWorkLinks}
+          files={files}
         />
       )}
     </div>

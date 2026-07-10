@@ -35,8 +35,9 @@ import {
 import { useRouter } from "next/navigation";
 import { SubmitModal } from "@/components/loader/submit-modal";
 import { VimeoUploadModal } from "@/components/uploads/vimeo-upload-modal";
+import { FileUploadModal } from "@/components/uploads/file-upload-modal";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
-import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
+import { FileText } from "lucide-react";
 import Link from "next/link";
 
 export type LoaderTask = {
@@ -59,6 +60,16 @@ export type ChapterVideo = {
   vimeo_link: string | null;
   status: string;
   title: string | null;
+};
+
+/** A slide/document file (S3) published to a task's chapter — surfaced on the Final Approved card. */
+export type ChapterFile = {
+  id: string;
+  uploaded_by: string;
+  file_url: string | null;
+  status: string;
+  title: string | null;
+  file_name: string | null;
 };
 
 function getApprovalStage(task: LoaderTask): "script" | "video" {
@@ -92,6 +103,7 @@ type LoaderBoardProps = {
   userName: string;
   subRole: string | null;
   chapterVideos: Record<string, ChapterVideo[]>;
+  chapterFiles: Record<string, ChapterFile[]>;
   taskWorkLinks: Record<string, string>;
   canUpload: boolean;
 };
@@ -273,25 +285,35 @@ function SortableTaskCard({
 function CompletedTaskCard({
   task,
   videos,
+  files,
   workLink,
   canUpload,
   userId,
 }: {
   task: LoaderTask;
   videos: ChapterVideo[];
+  files: ChapterFile[];
   workLink: string | null;
   canUpload: boolean;
   userId: string;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [fileUploadOpen, setFileUploadOpen] = useState(false);
   const router = useRouter();
 
   // Prefer the first available video's link; fall back to the newest one regardless of status.
   const linkedVideo = videos.find((v) => v.status === "available" && v.vimeo_link) || videos.find((v) => v.vimeo_link);
-  const ownsVideo = !!linkedVideo && linkedVideo.uploaded_by === userId;
+
+  const linkedFile = files.find((f) => f.status === "available" && f.file_url) || files.find((f) => f.file_url);
+  const ownsFile = !!linkedFile && linkedFile.uploaded_by === userId;
 
   const handleClose = () => {
     setUploadOpen(false);
+    router.refresh();
+  };
+
+  const handleFileClose = () => {
+    setFileUploadOpen(false);
     router.refresh();
   };
 
@@ -368,15 +390,45 @@ function CompletedTaskCard({
         </div>
       )}
 
+      {/* Slides/file published to this chapter (S3) — viewable + copyable just like the video. */}
+      {linkedFile && (
+        <div className="flex items-center justify-between gap-2 mb-2 px-3 py-2 bg-[#a78bfa]/10 border border-[#7c3aed]/20">
+          <a
+            href={linkedFile.file_url || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[10px] font-bold text-[#a78bfa] uppercase tracking-[1px] min-w-0 hover:underline"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <FileText className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Slides Uploaded</span>
+          </a>
+          <CopyLinkButton
+            link={linkedFile.file_url}
+            className="shrink-0 px-2.5 py-1 border border-[#7c3aed]/40 text-[10px] font-bold text-[#a78bfa] tracking-[1px] uppercase hover:bg-[#7c3aed]/10 transition-colors flex items-center gap-1.5 disabled:opacity-40"
+          />
+        </div>
+      )}
+
       {canUpload && task.chapter_id && (
-        <button
-          type="button"
-          onClick={() => setUploadOpen(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-[1.5px] text-white bg-transparent border border-white hover:bg-white hover:text-black transition-all"
-        >
-          <Upload className="h-3.5 w-3.5" />
-          {linkedVideo ? "Upload Another" : "Upload to Vimeo"}
-        </button>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setUploadOpen(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-[1.5px] text-white bg-transparent border border-white hover:bg-white hover:text-black transition-all"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            {linkedVideo ? "Upload Another" : "Upload to Vimeo"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFileUploadOpen(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-[1.5px] text-[#a78bfa] bg-transparent border border-[#7c3aed]/50 hover:bg-[#7c3aed]/10 transition-all"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {ownsFile ? "Replace Slides" : "Add File / Slides"}
+          </button>
+        </div>
       )}
 
       <div className="mt-2 text-[10px] text-[#7e7e7e]">
@@ -390,6 +442,16 @@ function CompletedTaskCard({
           defaultTitle={task.chapter?.name || task.title || ""}
           taskWorkLink={workLink}
           onClose={handleClose}
+        />
+      )}
+
+      {fileUploadOpen && task.chapter_id && (
+        <FileUploadModal
+          hierarchyId={task.chapter_id}
+          destinationLabel={task.chapter?.name || "Chapter"}
+          defaultTitle={task.chapter?.name || task.title || ""}
+          replaceUploadId={ownsFile ? linkedFile!.id : undefined}
+          onClose={handleFileClose}
         />
       )}
     </div>
@@ -473,12 +535,14 @@ function DroppableColumn({
 function CompletedColumn({
   tasks,
   chapterVideos,
+  chapterFiles,
   taskWorkLinks,
   canUpload,
   userId,
 }: {
   tasks: LoaderTask[];
   chapterVideos: Record<string, ChapterVideo[]>;
+  chapterFiles: Record<string, ChapterFile[]>;
   taskWorkLinks: Record<string, string>;
   canUpload: boolean;
   userId: string;
@@ -498,6 +562,7 @@ function CompletedColumn({
             key={task.id}
             task={task}
             videos={(task.chapter_id && chapterVideos[task.chapter_id]) || []}
+            files={(task.chapter_id && chapterFiles[task.chapter_id]) || []}
             workLink={taskWorkLinks[task.id] || null}
             canUpload={canUpload}
             userId={userId}
@@ -513,7 +578,7 @@ function CompletedColumn({
   );
 }
 
-export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole, chapterVideos, taskWorkLinks, canUpload }: LoaderBoardProps) {
+export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole, chapterVideos, chapterFiles, taskWorkLinks, canUpload }: LoaderBoardProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [mounted, setMounted] = useState(false);
   const [submittingTask, setSubmittingTask] = useState<LoaderTask | null>(null);
@@ -712,6 +777,7 @@ export function LoaderBoard({ tasks: initialTasks, userId, userName, subRole, ch
         <CompletedColumn
           tasks={completedTasks}
           chapterVideos={chapterVideos}
+          chapterFiles={chapterFiles}
           taskWorkLinks={taskWorkLinks}
           canUpload={canUpload}
           userId={userId}

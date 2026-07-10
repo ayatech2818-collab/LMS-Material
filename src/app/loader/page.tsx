@@ -1,7 +1,7 @@
 import { Header } from "@/components/shared/header";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { LoaderBoard, type LoaderTask, type ChapterVideo } from "@/components/loader/loader-board";
+import { LoaderBoard, type LoaderTask, type ChapterVideo, type ChapterFile } from "@/components/loader/loader-board";
 import { formatSubRole } from "@/lib/utils";
 import { getLoaderStatsForUser } from "@/lib/task-stats";
 
@@ -72,6 +72,27 @@ export default async function LoaderDashboardPage() {
         vimeo_link: v.vimeo_link,
         status: v.status,
         title: v.title,
+      });
+    });
+  }
+
+  // Slide/document files (S3) published to those same chapters — surfaced on the card next to
+  // the video, viewable + copyable just like the video.
+  const chapterFiles: Record<string, ChapterFile[]> = {};
+  if (finalChapterIds.length > 0) {
+    const { data: files } = await adminClient
+      .from("file_uploads")
+      .select("id, hierarchy_id, file_url, status, title, file_name, uploaded_by")
+      .in("hierarchy_id", finalChapterIds)
+      .order("created_at", { ascending: false });
+    (files || []).forEach((f) => {
+      (chapterFiles[f.hierarchy_id] ||= []).push({
+        id: f.id,
+        uploaded_by: f.uploaded_by,
+        file_url: f.file_url,
+        status: f.status,
+        title: f.title,
+        file_name: f.file_name,
       });
     });
   }
@@ -167,6 +188,7 @@ export default async function LoaderDashboardPage() {
             userName={profile?.full_name || "Unknown"}
             subRole={profile?.sub_role || null}
             chapterVideos={chapterVideos}
+            chapterFiles={chapterFiles}
             taskWorkLinks={taskWorkLinks}
             canUpload={canUpload}
           />

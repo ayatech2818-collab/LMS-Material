@@ -179,6 +179,41 @@ CREATE POLICY "Uploaders can read hierarchies"
 ON public.hierarchies FOR SELECT
 USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'uploader' );
 
+-- Slide/document files uploaded to AWS S3, attached to any level of the hierarchy. Mirrors
+-- video_uploads (see sql/add-file-uploads.sql, kept in sync).
+CREATE TABLE public.file_uploads (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hierarchy_id  UUID NOT NULL REFERENCES public.hierarchies(id) ON DELETE CASCADE,
+  uploaded_by   UUID NOT NULL REFERENCES public.profiles(id),
+  s3_key        TEXT NOT NULL,
+  file_url      TEXT,
+  file_name     TEXT,
+  content_type  TEXT,
+  file_size     BIGINT,
+  title         TEXT,
+  status        TEXT DEFAULT 'uploading', -- uploading | available | error
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.file_uploads ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins have full access to file_uploads"
+ON public.file_uploads FOR ALL
+USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' );
+
+CREATE POLICY "Uploaders can read own file_uploads"
+ON public.file_uploads FOR SELECT
+USING ( auth.uid() = uploaded_by );
+
+CREATE POLICY "Uploaders can insert file_uploads"
+ON public.file_uploads FOR INSERT
+WITH CHECK ( auth.uid() = uploaded_by );
+
+CREATE POLICY "Uploaders can update own file_uploads"
+ON public.file_uploads FOR UPDATE
+USING ( auth.uid() = uploaded_by );
+
 -- Storage buckets
 INSERT INTO storage.buckets (id, name, public) VALUES ('scripts', 'scripts', false) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true) ON CONFLICT DO NOTHING;

@@ -13,7 +13,7 @@ export default async function UploadVideoPage() {
   const adminClient = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ rows, taskCounts, completedTasks, taskWorkLinks }, hierarchies, { data: profile }] = await Promise.all([
+  const [{ rows, fileRows, taskCounts, completedTasks, taskWorkLinks }, hierarchies, { data: profile }] = await Promise.all([
     getUploadsBrowserData(),
     getHierarchies(),
     adminClient.from("profiles").select("role").eq("id", user?.id).single(),
@@ -32,6 +32,7 @@ export default async function UploadVideoPage() {
           taskCounts={taskCounts}
           completedTasks={completedTasks}
           taskWorkLinks={taskWorkLinks}
+          files={fileRows}
         />
       </div>
     </>
