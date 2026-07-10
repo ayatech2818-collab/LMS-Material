@@ -8,7 +8,7 @@ import { DeleteVideoButton } from "@/components/uploads/delete-video-button";
 import { DeleteUploadButton } from "@/components/uploads/delete-upload-button";
 import { VimeoUploadModal } from "@/components/uploads/vimeo-upload-modal";
 import { FileUploadModal } from "@/components/uploads/file-upload-modal";
-import { deleteFileUpload } from "@/app/uploader/upload/file-actions";
+import { deleteFileUpload, getFilePresignedUrl } from "@/app/uploader/upload/file-actions";
 import { RefreshCw, Film, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { UploadWithUploader } from "@/lib/video-uploads";
@@ -199,9 +199,9 @@ export function UploadsBrowser({
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0 flex-wrap">
-                      {file.status === "available" && file.file_url && (
+                      {file.status === "available" && (
                         <a
-                          href={file.file_url}
+                          href={`/api/files/${file.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
@@ -209,7 +209,9 @@ export function UploadsBrowser({
                           Open File
                         </a>
                       )}
-                      {file.status === "available" && <CopyLinkButton link={file.file_url} />}
+                      {file.status === "available" && (
+                        <CopyLinkButton resolveLink={() => getFilePresignedUrl(file.id).then((r) => r.url ?? null)} />
+                      )}
                       {canManage && (
                         <>
                           <button

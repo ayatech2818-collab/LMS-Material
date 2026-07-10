@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -33,21 +33,36 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export function CopyLinkButton({
   link,
+  resolveLink,
   disabled,
   className,
 }: {
-  link: string | null | undefined;
+  /** A ready link to copy. App-relative paths (starting with "/") are made absolute. */
+  link?: string | null;
+  /** Alternatively, fetch the link on click (e.g. a freshly-signed S3 URL). Takes precedence. */
+  resolveLink?: () => Promise<string | null>;
   disabled?: boolean;
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleCopy = async () => {
-    if (!link) {
+    let target: string | null = link ?? null;
+    if (resolveLink) {
+      setLoading(true);
+      try {
+        target = await resolveLink();
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (!target) {
       toast.error("No link available yet.");
       return;
     }
-    const ok = await copyToClipboard(link);
+    const absolute = target.startsWith("/") ? `${window.location.origin}${target}` : target;
+    const ok = await copyToClipboard(absolute);
     if (ok) {
       setCopied(true);
       toast.success("Link copied");
@@ -61,13 +76,19 @@ export function CopyLinkButton({
     <button
       type="button"
       onClick={handleCopy}
-      disabled={disabled || !link}
+      disabled={disabled || loading || (!link && !resolveLink)}
       className={
         className ??
         "shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
       }
     >
-      {copied ? <Check className="h-3.5 w-3.5 text-[#0fa336]" /> : <Copy className="h-3.5 w-3.5" />}
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : copied ? (
+        <Check className="h-3.5 w-3.5 text-[#0fa336]" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
       {copied ? "Copied" : "Copy Link"}
     </button>
   );

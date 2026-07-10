@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { initializeFileUpload, finalizeFileUpload, markFileUploadError } from "@/app/uploader/upload/file-actions";
 
 export type FileUploadStatus = "idle" | "uploading" | "finalizing" | "complete" | "error";
 
@@ -31,10 +30,9 @@ type StartOpts = {
 };
 
 /**
- * Uploads an arbitrary file directly to S3 via a presigned PUT: create the DB record on the
- * server, PUT the file straight to S3 from the browser (XMLHttpRequest so we get real upload
- * progress), then finalize the record. The S3 signature covers Content-Type, so we send the
- * exact type the server signed with.
+ * Uploads a file by POSTing it to our own API route (same-origin, so no S3 CORS is needed).
+ * The server stores it in the private bucket and records it; the file is then served via the
+ * signed-redirect route. XMLHttpRequest is used so we get real upload progress.
  */
 export function useFileUpload() {
   const [state, setState] = useState<FileUploadState>(IDLE);
@@ -49,7 +47,7 @@ export function useFileUpload() {
     setState(IDLE);
   }, []);
 
-  const start = useCallback(async ({ file, hierarchyId, title }: StartOpts) => {
+  const start = useCallback(({ file, hierarchyId, title }: StartOpts) => {
     setState({
       status: "uploading",
       progress: 0,
@@ -58,74 +56,63 @@ export function useFileUpload() {
       fileSize: file.size,
     });
 
-    const contentType = file.type || "application/octet-stream";
+    const form = new FormData();
+    form.append("file", file);
+    form.append("hierarchyId", hierarchyId);
+    if (title) form.append("title", title);
 
-    // 1. Create the record + get a presigned PUT URL.
-    const initResult = await initializeFileUpload(hierarchyId, file.name, contentType, file.size, title);
-    if (initResult.error || !initResult.uploadUrl || !initResult.uploadId) {
+    const xhr = new XMLHttpRequest();
+    xhrRef.current = xhr;
+    const startTime = Date.now();
+
+    xhr.open("POST", "/api/files/upload", true);
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed = elapsed > 0 ? e.loaded / elapsed : 0;
+      const progress = (e.loaded / e.total) * 100;
+      // Bytes are sent; the server still has to hand off to S3 afterwards.
       setState((prev) => ({
         ...prev,
-        status: "error",
-        errorMessage: initResult.error || "Failed to initialize upload",
+        progress: progress >= 100 ? 100 : progress,
+        speed,
+        status: progress >= 100 ? "finalizing" : "uploading",
       }));
-      return;
-    }
+    };
 
-    const { uploadUrl, uploadId, fileUrl } = initResult;
-
-    // 2. PUT the file straight to S3.
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhrRef.current = xhr;
-        const startTime = Date.now();
-
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader("Content-Type", initResult.contentType || contentType);
-
-        xhr.upload.onprogress = (e) => {
-          if (!e.lengthComputable) return;
-          const elapsed = (Date.now() - startTime) / 1000;
-          const speed = elapsed > 0 ? e.loaded / elapsed : 0;
-          const progress = (e.loaded / e.total) * 100;
-          setState((prev) => ({ ...prev, progress, speed }));
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`S3 upload failed: ${xhr.status}`));
-        };
-        xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
-
-        xhr.send(file);
-      });
-    } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        await markFileUploadError(uploadId);
-        return;
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        let body: { id?: string; fileUrl?: string } = {};
+        try {
+          body = JSON.parse(xhr.responseText);
+        } catch {
+          /* ignore */
+        }
+        setState((prev) => ({
+          ...prev,
+          status: "complete",
+          progress: 100,
+          uploadId: body.id,
+          fileUrl: body.fileUrl,
+        }));
+      } else {
+        let message = `Upload failed: ${xhr.status}`;
+        try {
+          const body = JSON.parse(xhr.responseText);
+          if (body.error) message = body.error;
+        } catch {
+          /* ignore */
+        }
+        setState((prev) => ({ ...prev, status: "error", errorMessage: message }));
       }
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("File upload error:", msg);
-      await markFileUploadError(uploadId);
-      setState((prev) => ({ ...prev, status: "error", errorMessage: msg }));
-      return;
-    }
+    };
 
-    // 3. Finalize.
-    setState((prev) => ({ ...prev, status: "finalizing", progress: 100 }));
+    xhr.onerror = () => {
+      setState((prev) => ({ ...prev, status: "error", errorMessage: "Network error during upload" }));
+    };
 
-    const finalResult = await finalizeFileUpload(uploadId);
-    if (finalResult.error) {
-      setState((prev) => ({ ...prev, status: "error", errorMessage: finalResult.error }));
-      return;
-    }
-
-    setState((prev) => ({
-      ...prev,
-      status: "complete",
-      uploadId,
-      fileUrl: fileUrl || undefined,
-    }));
+    xhr.send(form);
   }, []);
 
   return { state, start, cancel, reset };

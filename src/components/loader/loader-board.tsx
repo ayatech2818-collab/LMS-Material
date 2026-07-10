@@ -37,6 +37,7 @@ import { SubmitModal } from "@/components/loader/submit-modal";
 import { VimeoUploadModal } from "@/components/uploads/vimeo-upload-modal";
 import { FileUploadModal } from "@/components/uploads/file-upload-modal";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
+import { getFilePresignedUrl } from "@/app/uploader/upload/file-actions";
 import { FileText } from "lucide-react";
 import Link from "next/link";
 
@@ -394,7 +395,7 @@ function CompletedTaskCard({
       {linkedFile && (
         <div className="flex items-center justify-between gap-2 mb-2 px-3 py-2 bg-[#a78bfa]/10 border border-[#7c3aed]/20">
           <a
-            href={linkedFile.file_url || undefined}
+            href={`/api/files/${linkedFile.id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-[10px] font-bold text-[#a78bfa] uppercase tracking-[1px] min-w-0 hover:underline"
@@ -404,7 +405,7 @@ function CompletedTaskCard({
             <span className="truncate">Slides Uploaded</span>
           </a>
           <CopyLinkButton
-            link={linkedFile.file_url}
+            resolveLink={() => getFilePresignedUrl(linkedFile.id).then((r) => r.url ?? null)}
             className="shrink-0 px-2.5 py-1 border border-[#7c3aed]/40 text-[10px] font-bold text-[#a78bfa] tracking-[1px] uppercase hover:bg-[#7c3aed]/10 transition-colors flex items-center gap-1.5 disabled:opacity-40"
           />
         </div>

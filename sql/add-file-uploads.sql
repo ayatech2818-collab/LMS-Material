@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS public.file_uploads (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hierarchy_id  UUID NOT NULL REFERENCES public.hierarchies(id) ON DELETE CASCADE,
   uploaded_by   UUID NOT NULL REFERENCES public.profiles(id),
-  s3_key        TEXT NOT NULL,        -- object key in the bucket
-  file_url      TEXT,                 -- permanent public URL
+  s3_key        TEXT NOT NULL,        -- object key in the (private) bucket
+  file_url      TEXT,                 -- app link, served via /api/files/[id] (signed redirect)
   file_name     TEXT,                 -- original filename
   content_type  TEXT,
   file_size     BIGINT,               -- bytes

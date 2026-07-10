@@ -2,108 +2,39 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { canUserUpload } from "@/lib/upload-auth";
-import { s3Configured, buildObjectKey, presignPutUrl, publicObjectUrl, deleteObject } from "@/lib/s3";
+import { deleteObject, presignGetUrl } from "@/lib/s3";
 import { revalidatePath } from "next/cache";
 
-function revalidateUploads() {
-  revalidatePath("/uploader");
-  revalidatePath("/uploader/upload");
-  revalidatePath("/admin/uploads");
-  revalidatePath("/loader");
-}
+// A copied file link should be directly usable, so we hand out the longest-lived presigned GET
+// URL S3 allows (7 days). "Open File" still goes through /api/files/[id], which re-signs on
+// every click and therefore never expires.
+const COPY_LINK_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
 /**
- * Initialize an S3 file upload: create the DB record and return a presigned PUT URL for the
- * browser to upload the file directly. Mirrors initializeVimeoUpload. hierarchyId can point to
- * a board, class, subject, or chapter row — attachment is level-agnostic.
+ * Returns a fresh, directly-openable presigned S3 URL for a file (for the Copy Link button).
+ * Any signed-in user may fetch it — file links are shareable across the platform, matching how
+ * /api/files/[id] serves them publicly.
  */
-export async function initializeFileUpload(
-  hierarchyId: string,
-  fileName: string,
-  contentType: string,
-  fileSize: number,
-  title?: string
-) {
+export async function getFilePresignedUrl(uploadId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  if (!(await canUserUpload(user.id))) {
-    return { error: "Forbidden: only a Video Editor (or an uploader/admin) can upload files." };
-  }
-
-  if (!s3Configured()) return { error: "S3 storage is not configured" };
-
-  const type = contentType || "application/octet-stream";
+  const adminClient = createAdminClient();
+  const { data } = await adminClient
+    .from("file_uploads")
+    .select("s3_key")
+    .eq("id", uploadId)
+    .maybeSingle();
+  if (!data?.s3_key) return { error: "File not found" };
 
   try {
-    const key = buildObjectKey(hierarchyId, fileName);
-    const uploadUrl = await presignPutUrl(key, type);
-    const fileUrl = publicObjectUrl(key);
-
-    const adminClient = createAdminClient();
-    const { data: upload, error: dbError } = await adminClient
-      .from("file_uploads")
-      .insert({
-        hierarchy_id: hierarchyId,
-        uploaded_by: user.id,
-        s3_key: key,
-        file_url: fileUrl,
-        file_name: fileName,
-        content_type: type,
-        file_size: fileSize,
-        title: title || fileName,
-        status: "uploading",
-      })
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error("file_uploads insert error:", dbError);
-      return { error: dbError.message };
-    }
-
-    return { success: true, uploadUrl, uploadId: upload.id, fileUrl, contentType: type };
-  } catch (err: unknown) {
-    console.error("initializeFileUpload error:", err);
-    return { error: err instanceof Error ? err.message : String(err) };
+    const url = await presignGetUrl(data.s3_key, COPY_LINK_EXPIRY_SECONDS);
+    return { url };
+  } catch (err) {
+    console.error("getFilePresignedUrl error:", err);
+    return { error: err instanceof Error ? err.message : "Could not generate link" };
   }
-}
-
-/** Finalize a file upload: mark the record "available". */
-export async function finalizeFileUpload(uploadId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const adminClient = createAdminClient();
-  const { error } = await adminClient
-    .from("file_uploads")
-    .update({ status: "available", updated_at: new Date().toISOString() })
-    .eq("id", uploadId)
-    .eq("uploaded_by", user.id);
-
-  if (error) return { error: error.message };
-  revalidateUploads();
-  return { success: true };
-}
-
-/** Mark a file upload as failed. */
-export async function markFileUploadError(uploadId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const adminClient = createAdminClient();
-  const { error } = await adminClient
-    .from("file_uploads")
-    .update({ status: "error", updated_at: new Date().toISOString() })
-    .eq("id", uploadId)
-    .eq("uploaded_by", user.id);
-
-  if (error) return { error: error.message };
-  return { success: true };
 }
 
 /**
@@ -144,6 +75,9 @@ export async function deleteFileUpload(uploadId: string) {
   const { error } = await adminClient.from("file_uploads").delete().eq("id", uploadId);
   if (error) return { error: error.message };
 
-  revalidateUploads();
+  revalidatePath("/uploader");
+  revalidatePath("/uploader/upload");
+  revalidatePath("/admin/uploads");
+  revalidatePath("/loader");
   return { success: true };
 }

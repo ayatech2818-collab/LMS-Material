@@ -1,9 +1,9 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// Server-only. Reads AWS creds from the environment (see .env). Uploaded objects are served
-// from a permanent public URL, so the bucket must grant public read (bucket policy) and allow
-// PUT from the app origin via CORS.
+// Server-only. Reads AWS creds from the environment (see .env). The bucket stays private:
+// files are uploaded through our own API and served via short-lived presigned GET URLs, so no
+// public-read policy or CORS configuration is required — only valid IAM credentials.
 const REGION = process.env.AWS_REGION || "";
 const BUCKET = process.env.AWS_S3_BUCKET || "";
 
@@ -34,19 +34,14 @@ export function buildObjectKey(hierarchyId: string, fileName: string): string {
   return `materials/${hierarchyId}/${crypto.randomUUID()}-${safe}`;
 }
 
-/**
- * Presigned PUT URL for a direct browser upload (~15 min). The signature covers Content-Type,
- * so the browser must send the exact same Content-Type header when it PUTs.
- */
-export async function presignPutUrl(key: string, contentType: string): Promise<string> {
-  const cmd = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType });
-  return getSignedUrl(s3(), cmd, { expiresIn: 900 });
+/** Upload bytes to the bucket (server-side; the browser never talks to S3 directly). */
+export async function putObject(key: string, body: Buffer, contentType: string): Promise<void> {
+  await s3().send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }));
 }
 
-/** Permanent public URL for an object (works only if the bucket grants public read). */
-export function publicObjectUrl(key: string): string {
-  const encoded = key.split("/").map(encodeURIComponent).join("/");
-  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encoded}`;
+/** A short-lived presigned GET URL for a private object (default 1 hour). */
+export async function presignGetUrl(key: string, expiresIn = 3600): Promise<string> {
+  return getSignedUrl(s3(), new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn });
 }
 
 export async function deleteObject(key: string): Promise<void> {

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { UploadProgress } from "@/components/uploader/upload-progress";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
 import { useFileUpload } from "@/components/uploads/use-file-upload";
-import { deleteFileUpload } from "@/app/uploader/upload/file-actions";
+import { deleteFileUpload, getFilePresignedUrl } from "@/app/uploader/upload/file-actions";
 
 const ACCEPT = ".pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.xls,.xlsx,.txt,.zip,image/*";
 
@@ -148,15 +148,10 @@ export function FileUploadModal({ hierarchyId, destinationLabel, defaultTitle, r
 
               {state.status === "complete" && (
                 <>
-                  {state.fileUrl && (
-                    <div className="bg-[#0d0d0d] border border-[#3c3c3c] p-3 flex items-center gap-2">
-                      <input
-                        readOnly
-                        value={state.fileUrl}
-                        className="flex-1 bg-transparent text-xs text-[#e6e6e6] outline-none truncate"
-                        aria-label="File link"
-                      />
-                      <CopyLinkButton link={state.fileUrl} />
+                  {state.uploadId && (
+                    <div className="bg-[#0d0d0d] border border-[#3c3c3c] p-3 flex items-center justify-end gap-2">
+                      <span className="flex-1 text-xs text-[#7e7e7e] truncate">Upload complete — copy the shareable file link:</span>
+                      <CopyLinkButton resolveLink={() => getFilePresignedUrl(state.uploadId!).then((r) => r.url ?? null)} />
                     </div>
                   )}
                   <div className="flex gap-3">
