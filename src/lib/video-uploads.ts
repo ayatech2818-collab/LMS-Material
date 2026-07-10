@@ -50,7 +50,7 @@ export type UploadsBrowserData = {
 export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
   const adminClient = createAdminClient();
 
-  const [{ data: uploads }, { data: files }, { data: completedTasks }] = await Promise.all([
+  const [uploadsResult, filesResult, tasksResult] = await Promise.all([
     adminClient
       .from("video_uploads")
       .select("*")
@@ -64,6 +64,14 @@ export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
       .select("id, board_id, class_id, subject_id, chapter_id, current_status, created_at, updated_at")
       .eq("current_status", "final_approved"),
   ]);
+
+  if (uploadsResult.error) console.error("getUploadsBrowserData: video_uploads query failed:", uploadsResult.error);
+  if (filesResult.error) console.error("getUploadsBrowserData: file_uploads query failed:", filesResult.error);
+  if (tasksResult.error) console.error("getUploadsBrowserData: tasks query failed:", tasksResult.error);
+
+  const uploads = uploadsResult.data;
+  const files = filesResult.data;
+  const completedTasks = tasksResult.data;
 
   const completed = (completedTasks || []) as CompletedTaskRow[];
 
