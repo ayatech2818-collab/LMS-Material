@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getVimeoVideoInfo } from "@/lib/vimeo";
-import type { FileUploadWithUploader } from "@/lib/file-uploads";
+import type { FileUploadRow, FileUploadWithUploader } from "@/lib/file-uploads";
 
 export type VideoUploadRow = {
   id: string;
@@ -53,11 +53,11 @@ export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
   const [{ data: uploads }, { data: files }, { data: completedTasks }] = await Promise.all([
     adminClient
       .from("video_uploads")
-      .select("*, uploader:uploaded_by(full_name)")
+      .select("*")
       .order("created_at", { ascending: false }),
     adminClient
       .from("file_uploads")
-      .select("*, uploader:uploaded_by(full_name)")
+      .select("*")
       .order("created_at", { ascending: false }),
     adminClient
       .from("tasks")
@@ -91,8 +91,24 @@ export async function getUploadsBrowserData(): Promise<UploadsBrowserData> {
     }
   }
 
-  const rows = (uploads || []) as UploadWithUploader[];
-  const fileRows = (files || []) as FileUploadWithUploader[];
+  // Resolve uploader names with a single profiles lookup instead of PostgREST embedded joins —
+  // the *_uploads → profiles relationships may not be in the schema cache, and an unresolved
+  // embed makes the whole query silently return nothing (the same reason the dashboard dropped
+  // its embeds).
+  const uploadList = (uploads || []) as VideoUploadRow[];
+  const fileList = (files || []) as FileUploadRow[];
+  const uploaderIds = Array.from(
+    new Set([...uploadList.map((u) => u.uploaded_by), ...fileList.map((f) => f.uploaded_by)])
+  );
+  const nameMap = new Map<string, string>();
+  if (uploaderIds.length > 0) {
+    const { data: profs } = await adminClient.from("profiles").select("id, full_name").in("id", uploaderIds);
+    (profs || []).forEach((p: { id: string; full_name: string }) => nameMap.set(p.id, p.full_name));
+  }
+  const nameFor = (id: string) => (nameMap.has(id) ? { full_name: nameMap.get(id)! } : null);
+
+  const rows: UploadWithUploader[] = uploadList.map((u) => ({ ...u, uploader: nameFor(u.uploaded_by) }));
+  const fileRows: FileUploadWithUploader[] = fileList.map((f) => ({ ...f, uploader: nameFor(f.uploaded_by) }));
 
   return { rows, fileRows, taskCounts, completedTasks: completed, taskWorkLinks };
 }
