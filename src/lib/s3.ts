@@ -1,9 +1,9 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// Server-only. Reads AWS creds from the environment (see .env). The bucket stays private:
-// files are uploaded through our own API and served via short-lived presigned GET URLs, so no
-// public-read policy or CORS configuration is required — only valid IAM credentials.
+// Server-only. Reads AWS creds from the environment (see .env). The bucket stays private: our
+// server only ever mints presigned PUT/GET URLs (uploads and downloads happen directly between
+// the browser and S3), so the bucket needs a CORS policy allowing PUT from our app's origin.
 const REGION = process.env.AWS_REGION || "";
 const BUCKET = process.env.AWS_S3_BUCKET || "";
 
@@ -34,14 +34,18 @@ export function buildObjectKey(hierarchyId: string, fileName: string): string {
   return `materials/${hierarchyId}/${crypto.randomUUID()}-${safe}`;
 }
 
-/** Upload bytes to the bucket (server-side; the browser never talks to S3 directly). */
-export async function putObject(key: string, body: Buffer, contentType: string): Promise<void> {
-  await s3().send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }));
-}
-
 /** A short-lived presigned GET URL for a private object (default 1 hour). */
 export async function presignGetUrl(key: string, expiresIn = 3600): Promise<string> {
   return getSignedUrl(s3(), new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn });
+}
+
+/**
+ * A short-lived presigned PUT URL so the browser can upload straight to S3, bypassing our
+ * server's request body entirely (Vercel serverless functions cap that at 4.5 MB). The caller
+ * must send the exact same Content-Type header on the PUT, or S3 rejects the signature.
+ */
+export async function presignPutUrl(key: string, contentType: string, expiresIn = 900): Promise<string> {
+  return getSignedUrl(s3(), new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType }), { expiresIn });
 }
 
 export async function deleteObject(key: string): Promise<void> {
