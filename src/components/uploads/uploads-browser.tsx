@@ -201,7 +201,7 @@ export function UploadsBrowser({
                     <div className="flex gap-2 shrink-0 flex-wrap">
                       {file.status === "available" && (
                         <a
-                          href={`/api/files/${file.id}`}
+                          href={`/view/${file.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"

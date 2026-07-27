@@ -35,8 +35,12 @@ export function buildObjectKey(hierarchyId: string, fileName: string): string {
 }
 
 /** A short-lived presigned GET URL for a private object (default 1 hour). */
-export async function presignGetUrl(key: string, expiresIn = 3600): Promise<string> {
-  return getSignedUrl(s3(), new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn });
+export async function presignGetUrl(key: string, expiresIn = 3600, inline = false): Promise<string> {
+  const params: any = { Bucket: BUCKET, Key: key };
+  if (inline) {
+    params.ResponseContentDisposition = "inline";
+  }
+  return getSignedUrl(s3(), new GetObjectCommand(params), { expiresIn });
 }
 
 /**

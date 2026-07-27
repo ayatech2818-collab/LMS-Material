@@ -395,7 +395,7 @@ function CompletedTaskCard({
       {linkedFile && (
         <div className="flex items-center justify-between gap-2 mb-2 px-3 py-2 bg-[#a78bfa]/10 border border-[#7c3aed]/20">
           <a
-            href={`/api/files/${linkedFile.id}`}
+            href={`/view/${linkedFile.id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-[10px] font-bold text-[#a78bfa] uppercase tracking-[1px] min-w-0 hover:underline"

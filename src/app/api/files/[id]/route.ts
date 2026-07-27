@@ -33,7 +33,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   try {
-    const url = await presignGetUrl(data.s3_key);
+    const url = await presignGetUrl(data.s3_key, 3600, true);
     return NextResponse.redirect(url, 302);
   } catch (err) {
     console.error("presignGetUrl failed:", err);

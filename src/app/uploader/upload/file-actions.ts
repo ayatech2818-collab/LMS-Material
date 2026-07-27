@@ -16,25 +16,8 @@ const COPY_LINK_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
  * /api/files/[id] serves them publicly.
  */
 export async function getFilePresignedUrl(uploadId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const adminClient = createAdminClient();
-  const { data } = await adminClient
-    .from("file_uploads")
-    .select("s3_key")
-    .eq("id", uploadId)
-    .maybeSingle();
-  if (!data?.s3_key) return { error: "File not found" };
-
-  try {
-    const url = await presignGetUrl(data.s3_key, COPY_LINK_EXPIRY_SECONDS);
-    return { url };
-  } catch (err) {
-    console.error("getFilePresignedUrl error:", err);
-    return { error: err instanceof Error ? err.message : "Could not generate link" };
-  }
+  // We no longer generate a 7-day presigned URL. Instead, we return the permanent Viewer page URL.
+  return { url: `/view/${uploadId}` };
 }
 
 /**
