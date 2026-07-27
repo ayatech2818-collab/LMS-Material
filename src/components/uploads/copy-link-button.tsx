@@ -61,7 +61,8 @@ export function CopyLinkButton({
       toast.error("No link available yet.");
       return;
     }
-    const absolute = target.startsWith("/") ? `${window.location.origin}${target}` : target;
+    const baseUrl = "https://rms.nawazinedu.com";
+    const absolute = target.startsWith("/") ? `${baseUrl}${target}` : target;
     const ok = await copyToClipboard(absolute);
     if (ok) {
       setCopied(true);
