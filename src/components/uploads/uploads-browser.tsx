@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { HierarchyColumns } from "@/components/admin/hierarchy-columns";
 import { getBreadcrumb, type HierarchyNode } from "@/lib/hierarchy";
 import { CopyLinkButton } from "@/components/uploads/copy-link-button";
@@ -53,9 +53,32 @@ export function UploadsBrowser({
   const [selectedNode, setSelectedNode] = useState<HierarchyNode | null>(null);
   const [replacing, setReplacing] = useState<UploadWithUploader | null>(null);
   const [replacingFile, setReplacingFile] = useState<FileUploadWithUploader | null>(null);
+  const [visibleVideoCount, setVisibleVideoCount] = useState(25);
+  const videoSentinelRef = useRef<HTMLDivElement | null>(null);
 
   const videosHere = selectedNode ? uploads.filter((u) => u.hierarchy_id === selectedNode.id) : [];
   const filesHere = selectedNode ? files.filter((f) => f.hierarchy_id === selectedNode.id) : [];
+
+  useEffect(() => {
+    setVisibleVideoCount(25);
+  }, [selectedNode?.id]);
+
+  useEffect(() => {
+    const sentinel = videoSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleVideoCount((prev) => Math.min(prev + 25, videosHere.length));
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [videosHere.length]);
+
+  const visibleVideos = videosHere.slice(0, visibleVideoCount);
 
   const tasksHere = selectedNode && completedTasks
     ? completedTasks.filter((t) => {
@@ -90,73 +113,85 @@ export function UploadsBrowser({
             <p className="text-sm">Navigate the hierarchy above and pick a Board, Class, Subject, or Chapter.</p>
           </div>
         ) : videosHere.length > 0 ? (
-          <ul className="divide-y divide-[#3c3c3c]">
-            {videosHere.map((upload) => (
-              <li
-                key={upload.id}
-                className="px-5 md:px-6 py-4 hover:bg-[#262626] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
+          <div>
+            <ul className="divide-y divide-[#3c3c3c]">
+              {visibleVideos.map((upload) => (
+                <li
+                  key={upload.id}
+                  className="px-5 md:px-6 py-4 hover:bg-[#262626] transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{upload.title || "Untitled"}</p>
+                    <p className="text-xs text-[#7e7e7e]">
+                      Uploaded by <span className="text-[#0066b1]">{upload.uploader?.full_name || "Unknown"}</span> •{" "}
+                      <span
+                        className={`uppercase font-bold ${
+                          upload.status === "available"
+                            ? "text-[#0fa336]"
+                            : upload.status === "error"
+                            ? "text-[#e22718]"
+                            : "text-[#f4b400]"
+                        }`}
+                      >
+                        {upload.status}
+                      </span>
+                      {upload.duration ? ` • ${Math.round(upload.duration)}s` : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0 flex-wrap">
+                    {upload.status === "available" && upload.vimeo_link && (
+                      <a
+                        href={upload.vimeo_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
+                      >
+                        View on Vimeo
+                      </a>
+                    )}
+                    {upload.status === "available" && (
+                      <CopyLinkButton link={upload.vimeo_link} />
+                    )}
+                    {canManage(upload) && (
+                      <>
+                        {upload.status !== "available" && (
+                          <button
+                            type="button"
+                            onClick={() => setReplacing(upload)}
+                            className="shrink-0 px-4 py-2 border border-[#f4b400] text-xs font-bold text-[#f4b400] tracking-[1px] uppercase hover:bg-[#f4b400]/10 transition-colors flex items-center gap-1.5"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            Re-upload
+                          </button>
+                        )}
+                        {upload.status === "available" && (
+                          <button
+                            type="button"
+                            onClick={() => setReplacing(upload)}
+                            className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors flex items-center gap-1.5"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            Re-upload
+                          </button>
+                        )}
+                        <DeleteVideoButton uploadId={upload.id} />
+                      </>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {visibleVideoCount < videosHere.length && (
+              <div
+                ref={videoSentinelRef}
+                className="py-3 flex items-center justify-center gap-2 text-xs text-[#7e7e7e]"
               >
-                <div className="min-w-0">
-                  <p className="font-semibold text-[#e6e6e6] text-sm mb-1 truncate">{upload.title || "Untitled"}</p>
-                  <p className="text-xs text-[#7e7e7e]">
-                    Uploaded by <span className="text-[#0066b1]">{upload.uploader?.full_name || "Unknown"}</span> •{" "}
-                    <span
-                      className={`uppercase font-bold ${
-                        upload.status === "available"
-                          ? "text-[#0fa336]"
-                          : upload.status === "error"
-                          ? "text-[#e22718]"
-                          : "text-[#f4b400]"
-                      }`}
-                    >
-                      {upload.status}
-                    </span>
-                    {upload.duration ? ` • ${Math.round(upload.duration)}s` : ""}
-                  </p>
-                </div>
-                <div className="flex gap-2 shrink-0 flex-wrap">
-                  {upload.status === "available" && upload.vimeo_link && (
-                    <a
-                      href={upload.vimeo_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors"
-                    >
-                      View on Vimeo
-                    </a>
-                  )}
-                  {upload.status === "available" && (
-                    <CopyLinkButton link={upload.vimeo_link} />
-                  )}
-                  {canManage(upload) && (
-                    <>
-                      {upload.status !== "available" && (
-                        <button
-                          type="button"
-                          onClick={() => setReplacing(upload)}
-                          className="shrink-0 px-4 py-2 border border-[#f4b400] text-xs font-bold text-[#f4b400] tracking-[1px] uppercase hover:bg-[#f4b400]/10 transition-colors flex items-center gap-1.5"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          Re-upload
-                        </button>
-                      )}
-                      {upload.status === "available" && (
-                        <button
-                          type="button"
-                          onClick={() => setReplacing(upload)}
-                          className="shrink-0 px-4 py-2 border border-[#3c3c3c] text-xs font-bold text-white tracking-[1px] uppercase hover:bg-[#3c3c3c] transition-colors flex items-center gap-1.5"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          Re-upload
-                        </button>
-                      )}
-                      <DeleteVideoButton uploadId={upload.id} />
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0066b1] animate-ping" />
+                <span>Loading more videos ({visibleVideoCount} of {videosHere.length})...</span>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="p-12 text-center text-[#7e7e7e]">
             <Film className="h-10 w-10 mx-auto mb-4 opacity-40" />

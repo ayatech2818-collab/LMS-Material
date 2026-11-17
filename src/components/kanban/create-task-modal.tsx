@@ -63,9 +63,20 @@ export function CreateTaskModal({ onClose }: { onClose: () => void }) {
     setAdding: (v: boolean) => void,
     setSelected: (v: string) => void
   ) => {
-    if (!newName.trim()) { setAdding(false); return; }
+    if (addingLoading) return;
+    const trimmed = newName.trim();
+    if (!trimmed) { setAdding(false); return; }
+
+    const exists = hierarchies.some(
+      h => h.type === type && h.parent_id === parentId && h.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      setError(`A ${type} named "${trimmed}" already exists.`);
+      return;
+    }
+
     setAddingLoading(true);
-    const res = await createHierarchy(type, newName.trim(), parentId);
+    const res = await createHierarchy(type, trimmed, parentId);
     if (res.success && res.data) {
       setHierarchies(prev => [...prev, res.data as HierarchyItem]);
       setSelected(res.data.id);
