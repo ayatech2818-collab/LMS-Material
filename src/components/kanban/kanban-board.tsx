@@ -500,6 +500,41 @@ function SortableTaskCard({
   );
 }
 
+// ── Task Query Filter Helper ────────────────────────────────────────────────
+
+function filterTasksByQuery(tasks: Task[], query: string): Task[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return tasks;
+
+  return tasks.filter((t) => {
+    const textFields = [
+      t.board?.name,
+      t.class?.name,
+      t.subject?.name,
+      t.chapter?.name,
+      t.hierarchies?.name,
+      t.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const loaderNames = (t.task_assignments ?? [])
+      .map((a) => a.user?.full_name)
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const contributors = (t.contributors ?? []).join(" ").toLowerCase();
+
+    return (
+      textFields.includes(q) ||
+      loaderNames.includes(q) ||
+      contributors.includes(q)
+    );
+  });
+}
+
 // ── Droppable Column ─────────────────────────────────────────────────────────
 
 function DroppableColumn({
@@ -514,6 +549,21 @@ function DroppableColumn({
   onDeleteTask: (task: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showSearch) {
+      inputRef.current?.focus();
+    }
+  }, [showSearch]);
+
+  const filteredTasks = useMemo(() => {
+    return filterTasksByQuery(tasks, search);
+  }, [tasks, search]);
+
+  const hasFilter = search.trim() !== "";
 
   return (
     <div
@@ -523,16 +573,76 @@ function DroppableColumn({
           : "bg-[#1a1a1a] border-[#3c3c3c]"
       } ${column.topClass}`}
     >
-      <div className="px-3 sm:px-4 py-3 sm:py-4 border-b border-[#3c3c3c] bg-[#0d0d0d] flex justify-between items-center">
-        <h3 className="text-[11px] sm:text-xs font-bold text-white uppercase tracking-[1.5px] truncate">{column.label}</h3>
-        <span className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 border rounded-sm ml-2 shrink-0 ${column.countClass}`}>
-          {tasks.length}
-        </span>
+      <div className="border-b border-[#3c3c3c] bg-[#0d0d0d]">
+        <div className="px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center">
+          <h3 className="text-[11px] sm:text-xs font-bold text-white uppercase tracking-[1.5px] truncate">
+            {column.label}
+          </h3>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowSearch((v) => !v)}
+              aria-label={`Search in ${column.label}`}
+              title={`Search in ${column.label}`}
+              className={`p-1 border rounded-sm transition-colors ${
+                hasFilter || showSearch
+                  ? "text-[#0066b1] border-[#0066b1]/40 bg-[#0066b1]/10"
+                  : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+              }`}
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+            <span className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 border rounded-sm ${column.countClass}`}>
+              {filteredTasks.length}
+            </span>
+          </div>
+        </div>
+
+        {showSearch && (
+          <div className="px-3 sm:px-4 pb-3 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search chapter, loader..."
+                className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                  title="Clear search"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {hasFilter && (
+              <div className="flex items-center justify-between text-[10px] text-[#7e7e7e]">
+                <span>{filteredTasks.length} of {tasks.length} tasks</span>
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="text-[#e22718] hover:underline uppercase tracking-[0.5px] font-bold"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div ref={setNodeRef} className="p-3 flex-1 overflow-y-auto w-full min-h-[400px] max-h-[calc(100vh-360px)]">
-        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map(task => (
+        <SortableContext items={filteredTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {filteredTasks.map((task) => (
             <SortableTaskCard
               key={task.id}
               task={task}
@@ -540,9 +650,11 @@ function DroppableColumn({
               onDeleteClick={onDeleteTask}
             />
           ))}
-          {tasks.length === 0 && (
+          {filteredTasks.length === 0 && (
             <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
-              <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">Drop tasks here</span>
+              <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
+                {hasFilter ? "No matches" : "Drop tasks here"}
+              </span>
             </div>
           )}
         </SortableContext>
@@ -569,21 +681,16 @@ function FinalApprovedColumn({
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showFilters) {
+      inputRef.current?.focus();
+    }
+  }, [showFilters]);
 
   const filtered = useMemo(() => {
-    let result = tasks;
-
-    const q = search.toLowerCase().trim();
-    if (q) {
-      result = result.filter((t) => {
-        const name = [t.board?.name, t.class?.name, t.subject?.name, t.chapter?.name, t.hierarchies?.name, t.title]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        const loaders = (t.contributors ?? []).join(" ").toLowerCase();
-        return name.includes(q) || loaders.includes(q);
-      });
-    }
+    let result = filterTasksByQuery(tasks, search);
     if (dateFrom) {
       const from = new Date(dateFrom);
       from.setHours(0, 0, 0, 0);
@@ -633,12 +740,26 @@ function FinalApprovedColumn({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
               <input
+                ref={inputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Name or loader..."
-                className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+                placeholder="Search chapter, loader..."
+                className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                  title="Clear search"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-1.5" title="Filter by latest completed date">
               <Calendar className="h-3.5 w-3.5 text-[#7e7e7e] shrink-0" />

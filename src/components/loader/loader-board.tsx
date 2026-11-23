@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -31,6 +31,8 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   Upload,
+  Search,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SubmitModal } from "@/components/loader/submit-modal";
@@ -459,6 +461,26 @@ function CompletedTaskCard({
   );
 }
 
+function filterLoaderTasksByQuery(tasks: LoaderTask[], query: string): LoaderTask[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return tasks;
+
+  return tasks.filter((t) => {
+    const text = [
+      t.chapter?.name,
+      t.title,
+      t.board?.name,
+      t.subject?.name,
+      t.class?.name,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return text.includes(q);
+  });
+}
+
 function DroppableColumn({
   column,
   tasks,
@@ -475,6 +497,21 @@ function DroppableColumn({
   onLinkChange: (taskId: string, url: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showSearch) {
+      inputRef.current?.focus();
+    }
+  }, [showSearch]);
+
+  const filteredTasks = useMemo(() => {
+    return filterLoaderTasksByQuery(tasks, search);
+  }, [tasks, search]);
+
+  const hasFilter = search.trim() !== "";
 
   const countColor =
     column.id === "todo"        ? "text-[#0066b1] border-[#0066b1]/30 bg-[#0066b1]/10" :
@@ -497,15 +534,71 @@ function DroppableColumn({
       <div className={topBorderClass}>
         <div className="px-4 py-3 border-b border-[#3c3c3c] bg-[#0d0d0d] flex justify-between items-center">
           <h3 className="text-[10px] font-bold text-white uppercase tracking-[2px]">{column.label}</h3>
-          <span className={`text-[10px] font-bold px-2.5 py-0.5 border ${countColor}`}>
-            {tasks.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowSearch(v => !v)}
+              aria-label={`Search in ${column.label}`}
+              title={`Search in ${column.label}`}
+              className={`p-1 border rounded-sm transition-colors ${
+                hasFilter || showSearch
+                  ? "text-[#0066b1] border-[#0066b1]/40 bg-[#0066b1]/10"
+                  : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+              }`}
+            >
+              <Search className="h-3 w-3" />
+            </button>
+            <span className={`text-[10px] font-bold px-2.5 py-0.5 border ${countColor}`}>
+              {filteredTasks.length}
+            </span>
+          </div>
         </div>
+
+        {showSearch && (
+          <div className="px-4 pb-3 pt-2 bg-[#0d0d0d] border-b border-[#3c3c3c]">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search chapter, subject..."
+                className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                  title="Clear search"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {hasFilter && (
+              <div className="flex items-center justify-between text-[10px] text-[#7e7e7e] mt-1.5">
+                <span>{filteredTasks.length} of {tasks.length} tasks</span>
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="text-[#e22718] hover:underline uppercase tracking-[0.5px] font-bold"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div ref={setNodeRef} className="p-3 flex-1 overflow-y-auto min-h-[300px] max-h-[calc(100vh-380px)]">
-        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks.map((task) => (
+        <SortableContext items={filteredTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {filteredTasks.map((task) => (
             <SortableTaskCard
               key={task.id}
               task={task}
@@ -516,10 +609,12 @@ function DroppableColumn({
               onLinkChange={onLinkChange}
             />
           ))}
-          {tasks.length === 0 && (
+          {filteredTasks.length === 0 && (
             <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
               <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
-                {column.id === "todo"
+                {hasFilter
+                  ? "No matches found"
+                  : column.id === "todo"
                   ? "All clear!"
                   : column.id === "in_progress"
                   ? "Drag tasks here to start"
@@ -548,17 +643,89 @@ function CompletedColumn({
   canUpload: boolean;
   userId: string;
 }) {
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showSearch) {
+      inputRef.current?.focus();
+    }
+  }, [showSearch]);
+
+  const filteredTasks = useMemo(() => {
+    return filterLoaderTasksByQuery(tasks, search);
+  }, [tasks, search]);
+
+  const hasFilter = search.trim() !== "";
+
   return (
     <div className="flex flex-col overflow-hidden border bg-[#1a1a1a] border-[#3c3c3c] [border-top:3px_solid_#0fa336]">
       <div className="px-4 py-3 border-b border-[#3c3c3c] bg-[#0d0d0d] flex justify-between items-center">
         <h3 className="text-[10px] font-bold text-white uppercase tracking-[2px]">Final Approved</h3>
-        <span className="text-[10px] font-bold px-2.5 py-0.5 border text-[#0fa336] border-[#0fa336]/30 bg-[#0fa336]/10">
-          {tasks.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSearch(v => !v)}
+            aria-label="Search completed tasks"
+            title="Search in Final Approved"
+            className={`p-1 border rounded-sm transition-colors ${
+              hasFilter || showSearch
+                ? "text-[#0fa336] border-[#0fa336]/40 bg-[#0fa336]/10"
+                : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+            }`}
+          >
+            <Search className="h-3 w-3" />
+          </button>
+          <span className="text-[10px] font-bold px-2.5 py-0.5 border text-[#0fa336] border-[#0fa336]/30 bg-[#0fa336]/10">
+            {filteredTasks.length}
+          </span>
+        </div>
       </div>
 
+      {showSearch && (
+        <div className="px-4 pb-3 pt-2 bg-[#0d0d0d] border-b border-[#3c3c3c]">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search chapter, subject..."
+              className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#141414] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  inputRef.current?.focus();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                title="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {hasFilter && (
+            <div className="flex items-center justify-between text-[10px] text-[#7e7e7e] mt-1.5">
+              <span>{filteredTasks.length} of {tasks.length} tasks</span>
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="text-[#e22718] hover:underline uppercase tracking-[0.5px] font-bold"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="p-3 flex-1 overflow-y-auto min-h-[300px] max-h-[calc(100vh-380px)]">
-        {tasks.map((task) => (
+        {filteredTasks.map((task) => (
           <CompletedTaskCard
             key={task.id}
             task={task}
@@ -569,9 +736,11 @@ function CompletedColumn({
             userId={userId}
           />
         ))}
-        {tasks.length === 0 && (
+        {filteredTasks.length === 0 && (
           <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
-            <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">No completed tasks yet</span>
+            <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
+              {hasFilter ? "No matches found" : "No completed tasks yet"}
+            </span>
           </div>
         )}
       </div>

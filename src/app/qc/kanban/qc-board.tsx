@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, ExternalLink, MessageSquare, Link as LinkIcon } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { X, ExternalLink, MessageSquare, Link as LinkIcon, Search } from "lucide-react";
 import { QCActionButtons } from "./qc-action-buttons";
 
 function getQCStage(status?: string, action?: string): "script" | "final" {
@@ -28,6 +28,59 @@ function QCStageBadge({ stage }: { stage: "script" | "final" }) {
 
 export function QCBoard({ userId, pendingTasks, approvedTasks, rejectedTasks }: any) {
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
+
+  const [showSearchPending, setShowSearchPending] = useState(false);
+  const [searchPending, setSearchPending] = useState("");
+  const inputRefPending = useRef<HTMLInputElement>(null);
+
+  const [showSearchApproved, setShowSearchApproved] = useState(false);
+  const [searchApproved, setSearchApproved] = useState("");
+  const inputRefApproved = useRef<HTMLInputElement>(null);
+
+  const [showSearchRejected, setShowSearchRejected] = useState(false);
+  const [searchRejected, setSearchRejected] = useState("");
+  const inputRefRejected = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showSearchPending) inputRefPending.current?.focus();
+  }, [showSearchPending]);
+
+  useEffect(() => {
+    if (showSearchApproved) inputRefApproved.current?.focus();
+  }, [showSearchApproved]);
+
+  useEffect(() => {
+    if (showSearchRejected) inputRefRejected.current?.focus();
+  }, [showSearchRejected]);
+
+  const filteredPending = useMemo(() => {
+    const q = searchPending.toLowerCase().trim();
+    if (!q) return pendingTasks;
+    return pendingTasks.filter((t: any) => {
+      const text = [t.chapter?.name, t.title, t.board?.name, t.subject?.name].filter(Boolean).join(" ").toLowerCase();
+      return text.includes(q);
+    });
+  }, [pendingTasks, searchPending]);
+
+  const filteredApproved = useMemo(() => {
+    const q = searchApproved.toLowerCase().trim();
+    if (!q) return approvedTasks;
+    return approvedTasks.filter((item: any) => {
+      const t = item.tasks;
+      const text = [t?.chapter?.name, t?.title, t?.board?.name, t?.subject?.name, item.action].filter(Boolean).join(" ").toLowerCase();
+      return text.includes(q);
+    });
+  }, [approvedTasks, searchApproved]);
+
+  const filteredRejected = useMemo(() => {
+    const q = searchRejected.toLowerCase().trim();
+    if (!q) return rejectedTasks;
+    return rejectedTasks.filter((item: any) => {
+      const t = item.tasks;
+      const text = [t?.chapter?.name, t?.title, t?.board?.name, t?.subject?.name, item.action].filter(Boolean).join(" ").toLowerCase();
+      return text.includes(q);
+    });
+  }, [rejectedTasks, searchRejected]);
 
   const renderPendingCard = (task: any) => {
     const stage = getQCStage(task.current_status);
@@ -136,48 +189,174 @@ export function QCBoard({ userId, pendingTasks, approvedTasks, rejectedTasks }: 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full min-h-0">
         {/* Pending Review */}
         <div className="flex flex-col bg-[#1a1a1a] border border-[#3c3c3c] p-4 min-h-0 overflow-hidden">
-          <h3 className="shrink-0 text-xs font-bold text-white tracking-[1.5px] uppercase mb-4 flex justify-between items-center">
-            Pending Review
-            <span className="text-[#0066b1] bg-[#0066b1]/10 text-xs px-2.5 py-1 font-bold border border-[#0066b1]/20">
-              {pendingTasks.length}
-            </span>
-          </h3>
+          <div className="shrink-0 mb-4">
+            <h3 className="text-xs font-bold text-white tracking-[1.5px] uppercase flex justify-between items-center">
+              Pending Review
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSearchPending(v => !v)}
+                  aria-label="Search pending review"
+                  title="Search in Pending Review"
+                  className={`p-1 border rounded-sm transition-colors ${
+                    searchPending.trim() || showSearchPending
+                      ? "text-[#0066b1] border-[#0066b1]/40 bg-[#0066b1]/10"
+                      : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+                  }`}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-[#0066b1] bg-[#0066b1]/10 text-xs px-2.5 py-1 font-bold border border-[#0066b1]/20">
+                  {filteredPending.length}
+                </span>
+              </div>
+            </h3>
+            {showSearchPending && (
+              <div className="relative mt-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+                <input
+                  ref={inputRefPending}
+                  type="text"
+                  value={searchPending}
+                  onChange={(e) => setSearchPending(e.target.value)}
+                  placeholder="Search chapter, subject..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+                />
+                {searchPending && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchPending(""); inputRefPending.current?.focus(); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                    title="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 qc-kanban-col">
-            {pendingTasks.map((t: any) => renderPendingCard(t))}
-            {pendingTasks.length === 0 && (
-              <p className="text-sm text-[#7e7e7e] text-center mt-6">Queue clear!</p>
+            {filteredPending.map((t: any) => renderPendingCard(t))}
+            {filteredPending.length === 0 && (
+              <p className="text-sm text-[#7e7e7e] text-center mt-6">
+                {searchPending.trim() ? "No matches found" : "Queue clear!"}
+              </p>
             )}
           </div>
         </div>
 
         {/* Approved */}
         <div className="flex flex-col bg-[#1a1a1a] border border-[#3c3c3c] p-4 min-h-0 overflow-hidden">
-          <h3 className="shrink-0 text-xs font-bold text-white tracking-[1.5px] uppercase mb-4 flex justify-between items-center">
-            Approved
-            <span className="text-[#0fa336] bg-[#0fa336]/10 text-xs px-2.5 py-1 font-bold border border-[#0fa336]/20">
-              {approvedTasks.length}
-            </span>
-          </h3>
+          <div className="shrink-0 mb-4">
+            <h3 className="text-xs font-bold text-white tracking-[1.5px] uppercase flex justify-between items-center">
+              Approved
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSearchApproved(v => !v)}
+                  aria-label="Search approved"
+                  title="Search in Approved"
+                  className={`p-1 border rounded-sm transition-colors ${
+                    searchApproved.trim() || showSearchApproved
+                      ? "text-[#0fa336] border-[#0fa336]/40 bg-[#0fa336]/10"
+                      : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+                  }`}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-[#0fa336] bg-[#0fa336]/10 text-xs px-2.5 py-1 font-bold border border-[#0fa336]/20">
+                  {filteredApproved.length}
+                </span>
+              </div>
+            </h3>
+            {showSearchApproved && (
+              <div className="relative mt-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+                <input
+                  ref={inputRefApproved}
+                  type="text"
+                  value={searchApproved}
+                  onChange={(e) => setSearchApproved(e.target.value)}
+                  placeholder="Search chapter, subject..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+                />
+                {searchApproved && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchApproved(""); inputRefApproved.current?.focus(); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                    title="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 qc-kanban-col">
-            {approvedTasks.map((t: any) => renderHistoryCard(t))}
-            {approvedTasks.length === 0 && (
-              <p className="text-sm text-[#7e7e7e] text-center mt-6">No approvals yet</p>
+            {filteredApproved.map((t: any) => renderHistoryCard(t))}
+            {filteredApproved.length === 0 && (
+              <p className="text-sm text-[#7e7e7e] text-center mt-6">
+                {searchApproved.trim() ? "No matches found" : "No approvals yet"}
+              </p>
             )}
           </div>
         </div>
 
         {/* Rejected */}
         <div className="flex flex-col bg-[#1a1a1a] border border-[#3c3c3c] p-4 min-h-0 overflow-hidden">
-          <h3 className="shrink-0 text-xs font-bold text-white tracking-[1.5px] uppercase mb-4 flex justify-between items-center">
-            Rejected
-            <span className="text-[#e22718] bg-[#e22718]/10 text-xs px-2.5 py-1 font-bold border border-[#e22718]/20">
-              {rejectedTasks.length}
-            </span>
-          </h3>
+          <div className="shrink-0 mb-4">
+            <h3 className="text-xs font-bold text-white tracking-[1.5px] uppercase flex justify-between items-center">
+              Rejected
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSearchRejected(v => !v)}
+                  aria-label="Search rejected"
+                  title="Search in Rejected"
+                  className={`p-1 border rounded-sm transition-colors ${
+                    searchRejected.trim() || showSearchRejected
+                      ? "text-[#e22718] border-[#e22718]/40 bg-[#e22718]/10"
+                      : "text-[#7e7e7e] border-[#3c3c3c] hover:text-white hover:border-[#7e7e7e]"
+                  }`}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-[#e22718] bg-[#e22718]/10 text-xs px-2.5 py-1 font-bold border border-[#e22718]/20">
+                  {filteredRejected.length}
+                </span>
+              </div>
+            </h3>
+            {showSearchRejected && (
+              <div className="relative mt-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7e7e7e] pointer-events-none" />
+                <input
+                  ref={inputRefRejected}
+                  type="text"
+                  value={searchRejected}
+                  onChange={(e) => setSearchRejected(e.target.value)}
+                  placeholder="Search chapter, subject..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs border border-[#3c3c3c] outline-none focus:border-[#0066b1] transition-all bg-[#0d0d0d] text-[#e6e6e6] placeholder:text-[#7e7e7e]"
+                />
+                {searchRejected && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchRejected(""); inputRefRejected.current?.focus(); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7e7e7e] hover:text-white p-0.5"
+                    title="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 qc-kanban-col">
-            {rejectedTasks.map((t: any) => renderHistoryCard(t))}
-            {rejectedTasks.length === 0 && (
-              <p className="text-sm text-[#7e7e7e] text-center mt-6">No rejections yet</p>
+            {filteredRejected.map((t: any) => renderHistoryCard(t))}
+            {filteredRejected.length === 0 && (
+              <p className="text-sm text-[#7e7e7e] text-center mt-6">
+                {searchRejected.trim() ? "No matches found" : "No rejections yet"}
+              </p>
             )}
           </div>
         </div>
