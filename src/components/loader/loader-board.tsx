@@ -628,6 +628,13 @@ function DroppableColumn({
   );
 }
 
+function taskHasVideo(task: LoaderTask, chapterVideos: Record<string, ChapterVideo[]>): boolean {
+  if (!task.chapter_id) return false;
+  const videos = chapterVideos[task.chapter_id];
+  if (!videos || videos.length === 0) return false;
+  return Boolean(videos.find((v) => (v.status === "available" && v.vimeo_link) || v.vimeo_link));
+}
+
 function CompletedColumn({
   tasks,
   chapterVideos,
@@ -645,6 +652,7 @@ function CompletedColumn({
 }) {
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "pending" | "uploaded">("all");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -657,7 +665,24 @@ function CompletedColumn({
     return filterLoaderTasksByQuery(tasks, search);
   }, [tasks, search]);
 
+  const { pendingUploadTasks, completedUploadTasks } = useMemo(() => {
+    const pending: LoaderTask[] = [];
+    const completed: LoaderTask[] = [];
+
+    for (const task of filteredTasks) {
+      if (taskHasVideo(task, chapterVideos)) {
+        completed.push(task);
+      } else {
+        pending.push(task);
+      }
+    }
+
+    return { pendingUploadTasks: pending, completedUploadTasks: completed };
+  }, [filteredTasks, chapterVideos]);
+
   const hasFilter = search.trim() !== "";
+  const showPending = filterType === "all" || filterType === "pending";
+  const showCompleted = filterType === "all" || filterType === "uploaded";
 
   return (
     <div className="flex flex-col overflow-hidden border bg-[#1a1a1a] border-[#3c3c3c] [border-top:3px_solid_#0fa336]">
@@ -724,22 +749,133 @@ function CompletedColumn({
         </div>
       )}
 
+      {/* Segmented filter control: All | To Upload | Uploaded */}
+      <div className="p-2 bg-[#0d0d0d] border-b border-[#3c3c3c]">
+        <div className="grid grid-cols-3 gap-1 bg-[#141414] p-1 border border-[#262626] rounded-sm">
+          <button
+            type="button"
+            onClick={() => setFilterType("all")}
+            className={`py-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.5px] transition-all flex items-center justify-center gap-1 rounded-xs ${
+              filterType === "all"
+                ? "bg-[#262626] text-white shadow-sm border border-[#3c3c3c]"
+                : "text-[#7e7e7e] hover:text-[#e6e6e6] border border-transparent"
+            }`}
+            title="All Completed Tasks"
+          >
+            <span>All</span>
+            <span className={`text-[9px] px-1 py-0.2 rounded-xs ${filterType === "all" ? "bg-white/10 text-white" : "text-[#7e7e7e]"}`}>
+              ({filteredTasks.length})
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType("pending")}
+            className={`py-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.5px] transition-all flex items-center justify-center gap-1 rounded-xs ${
+              filterType === "pending"
+                ? "bg-[#f4b400]/15 text-[#f4b400] border border-[#f4b400]/40 shadow-sm"
+                : "text-[#7e7e7e] hover:text-[#f4b400] border border-transparent"
+            }`}
+            title="Needs Vimeo Upload"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#f4b400] shrink-0" />
+            <span className="truncate">To Upload</span>
+            <span className={`text-[9px] px-1 py-0.2 rounded-xs ${filterType === "pending" ? "bg-[#f4b400]/20 text-[#f4b400]" : "text-[#7e7e7e]"}`}>
+              ({pendingUploadTasks.length})
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType("uploaded")}
+            className={`py-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.5px] transition-all flex items-center justify-center gap-1 rounded-xs ${
+              filterType === "uploaded"
+                ? "bg-[#0fa336]/15 text-[#0fa336] border border-[#0fa336]/40 shadow-sm"
+                : "text-[#7e7e7e] hover:text-[#0fa336] border border-transparent"
+            }`}
+            title="Already Uploaded to Vimeo"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0fa336] shrink-0" />
+            <span className="truncate">Uploaded</span>
+            <span className={`text-[9px] px-1 py-0.2 rounded-xs ${filterType === "uploaded" ? "bg-[#0fa336]/20 text-[#0fa336]" : "text-[#7e7e7e]"}`}>
+              ({completedUploadTasks.length})
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div className="p-3 flex-1 overflow-y-auto min-h-[300px] max-h-[calc(100vh-380px)]">
-        {filteredTasks.map((task) => (
-          <CompletedTaskCard
-            key={task.id}
-            task={task}
-            videos={(task.chapter_id && chapterVideos[task.chapter_id]) || []}
-            files={(task.chapter_id && chapterFiles[task.chapter_id]) || []}
-            workLink={taskWorkLinks[task.id] || null}
-            canUpload={canUpload}
-            userId={userId}
-          />
-        ))}
+        {/* SECTION 1: Upload to Vimeo (Pending Upload) - ALWAYS SHOWN ON TOP */}
+        {showPending && pendingUploadTasks.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2.5 px-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f4b400] shrink-0" />
+              <span className="text-[10px] font-bold text-[#f4b400] uppercase tracking-[1px] whitespace-nowrap">
+                Upload to Vimeo
+              </span>
+              <div className="flex-1 h-[1px] bg-[#3c3c3c]" />
+              <span className="text-[9px] font-bold text-[#f4b400] bg-[#f4b400]/10 border border-[#f4b400]/30 px-1.5 py-0.5 whitespace-nowrap shrink-0">
+                {pendingUploadTasks.length} PENDING
+              </span>
+            </div>
+            {pendingUploadTasks.map((task) => (
+              <CompletedTaskCard
+                key={task.id}
+                task={task}
+                videos={(task.chapter_id && chapterVideos[task.chapter_id]) || []}
+                files={(task.chapter_id && chapterFiles[task.chapter_id]) || []}
+                workLink={taskWorkLinks[task.id] || null}
+                canUpload={canUpload}
+                userId={userId}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* SECTION 2: Upload Another (Already Uploaded) - ALWAYS SHOWN UNDER */}
+        {showCompleted && completedUploadTasks.length > 0 && (
+          <div className="mb-4">
+            <div className={`flex items-center gap-2 mb-2.5 px-1 ${showPending && pendingUploadTasks.length > 0 ? "pt-3" : ""}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0fa336] shrink-0" />
+              <span className="text-[10px] font-bold text-[#0fa336] uppercase tracking-[1px] whitespace-nowrap">
+                Upload Another
+              </span>
+              <div className="flex-1 h-[1px] bg-[#3c3c3c]" />
+              <span className="text-[9px] font-bold text-[#0fa336] bg-[#0fa336]/10 border border-[#0fa336]/30 px-1.5 py-0.5 whitespace-nowrap shrink-0">
+                {completedUploadTasks.length} DONE
+              </span>
+            </div>
+            {completedUploadTasks.map((task) => (
+              <CompletedTaskCard
+                key={task.id}
+                task={task}
+                videos={(task.chapter_id && chapterVideos[task.chapter_id]) || []}
+                files={(task.chapter_id && chapterFiles[task.chapter_id]) || []}
+                workLink={taskWorkLinks[task.id] || null}
+                canUpload={canUpload}
+                userId={userId}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Empty States */}
         {filteredTasks.length === 0 && (
           <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px]">
             <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
               {hasFilter ? "No matches found" : "No completed tasks yet"}
+            </span>
+          </div>
+        )}
+        {filteredTasks.length > 0 && filterType === "pending" && pendingUploadTasks.length === 0 && (
+          <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px] p-4 text-center">
+            <span className="text-[10px] text-[#0fa336] select-none uppercase tracking-[1px] font-bold">
+              ✓ All tasks have videos uploaded!
+            </span>
+          </div>
+        )}
+        {filteredTasks.length > 0 && filterType === "uploaded" && completedUploadTasks.length === 0 && (
+          <div className="h-full flex items-center justify-center border border-dashed border-[#3c3c3c] min-h-[100px] p-4 text-center">
+            <span className="text-[10px] text-[#7e7e7e] select-none uppercase tracking-[1px]">
+              No tasks uploaded to Vimeo yet
             </span>
           </div>
         )}
